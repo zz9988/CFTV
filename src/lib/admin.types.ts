@@ -1,4 +1,5 @@
 export interface AdminConfig {
+  ConfigFile: string;
   SiteConfig: {
     SiteName: string;
     Announcement: string;

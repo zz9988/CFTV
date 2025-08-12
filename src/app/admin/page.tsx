@@ -1388,7 +1388,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             disabled={saving}
             className={`px-4 py-2 rounded-lg transition-colors ${saving
               ? 'bg-gray-400 cursor-not-allowed text-white'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white'
               }`}
           >
             {saving ? '保存中…' : '保存配置文件'}

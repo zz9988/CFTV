@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.1.0",
+    date: "2025-08-13",
+    added: [
+    "支持通过订阅获取配置文件"
+    ],
+    changed: [
+    "微调部分文案和 UI",
+    "删除部分无用代码"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "2.0.1",
     date: "2025-08-13",
     added: [

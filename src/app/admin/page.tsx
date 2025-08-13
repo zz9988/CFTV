@@ -1317,14 +1317,60 @@ const CategoryConfig = ({
 const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
   const [configContent, setConfigContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [subscriptionUrl, setSubscriptionUrl] = useState('');
+  const [autoUpdate, setAutoUpdate] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState<string>('');
 
   useEffect(() => {
     if (config?.ConfigFile) {
       setConfigContent(config.ConfigFile);
     }
+    if (config?.ConfigSubscribtion) {
+      setSubscriptionUrl(config.ConfigSubscribtion.URL);
+      setAutoUpdate(config.ConfigSubscribtion.AutoUpdate);
+      setLastCheckTime(config.ConfigSubscribtion.LastCheck || '');
+    }
   }, [config]);
 
 
+
+  // 拉取订阅配置
+  const handleFetchConfig = async () => {
+    if (!subscriptionUrl.trim()) {
+      showError('请输入订阅URL');
+      return;
+    }
+
+    try {
+      setFetching(true);
+      const resp = await fetch('/api/admin/config_subscription/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: subscriptionUrl }),
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `拉取失败: ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      if (data.configContent) {
+        setConfigContent(data.configContent);
+        // 更新本地配置的最后检查时间
+        const currentTime = new Date().toISOString();
+        setLastCheckTime(currentTime);
+        showSuccess('配置拉取成功');
+      } else {
+        showError('拉取失败：未获取到配置内容');
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '拉取失败');
+    } finally {
+      setFetching(false);
+    }
+  };
 
   // 保存配置文件
   const handleSave = async () => {
@@ -1333,7 +1379,12 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
       const resp = await fetch('/api/admin/config_file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configFile: configContent }),
+        body: JSON.stringify({
+          configFile: configContent,
+          subscriptionUrl,
+          autoUpdate,
+          lastCheckTime: lastCheckTime || new Date().toISOString()
+        }),
       });
 
       if (!resp.ok) {
@@ -1362,6 +1413,85 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
 
   return (
     <div className='space-y-4'>
+      {/* 配置订阅区域 */}
+      <div className='bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm'>
+        <div className='flex items-center justify-between mb-6'>
+          <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+            配置订阅
+          </h3>
+          <div className='text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-full'>
+            最后更新: {lastCheckTime ? new Date(lastCheckTime).toLocaleString('zh-CN') : '从未更新'}
+          </div>
+        </div>
+
+        <div className='space-y-6'>
+          {/* 订阅URL输入 */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
+              订阅URL
+            </label>
+            <input
+              type='url'
+              value={subscriptionUrl}
+              onChange={(e) => setSubscriptionUrl(e.target.value)}
+              placeholder='https://example.com/config.json'
+              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
+            />
+            <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+              输入配置文件的订阅地址，支持JSON格式
+            </p>
+          </div>
+
+          {/* 自动更新开关 */}
+          <div className='flex items-center justify-between'>
+            <div>
+              <label className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                自动更新
+              </label>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                启用后系统将定期自动拉取最新配置
+              </p>
+            </div>
+            <button
+              type='button'
+              onClick={() => setAutoUpdate(!autoUpdate)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
+                ? 'bg-green-600'
+                : 'bg-gray-200 dark:bg-gray-700'
+                }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoUpdate
+                  ? 'translate-x-6'
+                  : 'translate-x-1'
+                  }`}
+              />
+            </button>
+          </div>
+
+          {/* 拉取配置按钮 */}
+          <div className='pt-2'>
+            <button
+              onClick={handleFetchConfig}
+              disabled={fetching || !subscriptionUrl.trim()}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${fetching || !subscriptionUrl.trim()
+                ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
+                : 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
+                }`}
+            >
+              {fetching ? (
+                <div className='flex items-center justify-center gap-2'>
+                  <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
+                  拉取中…
+                </div>
+              ) : (
+                '拉取配置'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* 配置文件编辑区域 */}
       <div className='space-y-4'>
         <div className='relative'>

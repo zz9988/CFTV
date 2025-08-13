@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // 获取请求体
     const body = await request.json();
-    const { configFile } = body;
+    const { configFile, subscriptionUrl, autoUpdate, lastCheckTime } = body;
 
     if (!configFile || typeof configFile !== 'string') {
       return NextResponse.json(
@@ -60,6 +60,17 @@ export async function POST(request: NextRequest) {
     }
 
     adminConfig.ConfigFile = configFile;
+
+    // 更新订阅配置
+    if (subscriptionUrl !== undefined) {
+      adminConfig.ConfigSubscribtion.URL = subscriptionUrl;
+    }
+    if (autoUpdate !== undefined) {
+      adminConfig.ConfigSubscribtion.AutoUpdate = autoUpdate;
+    }
+    // 更新最后检查时间 - 使用前端传递的时间或当前时间
+    adminConfig.ConfigSubscribtion.LastCheck = lastCheckTime || '';
+
     adminConfig = refineConfig(adminConfig);
     // 更新配置文件
     if (storage && typeof (storage as any).setAdminConfig === 'function') {

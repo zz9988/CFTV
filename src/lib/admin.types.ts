@@ -1,4 +1,9 @@
 export interface AdminConfig {
+  ConfigSubscribtion: {
+    URL: string;
+    AutoUpdate: boolean;
+    LastCheck: string;
+  };
   ConfigFile: string;
   SiteConfig: {
     SiteName: string;

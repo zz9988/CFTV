@@ -149,7 +149,7 @@ async function getInitConfig(configFile: string, subConfig: {
   } catch (e) {
     cfgFile = {} as ConfigFileStruct;
   }
-  let adminConfig: AdminConfig = {
+  const adminConfig: AdminConfig = {
     ConfigFile: configFile,
     ConfigSubscribtion: subConfig,
     SiteConfig: {
@@ -253,15 +253,14 @@ export async function resetConfig() {
     originConfig = await (storage as any).getAdminConfig();
   } else {
     originConfig = {} as AdminConfig;
-
-    const adminConfig = await getInitConfig(originConfig.ConfigFile, originConfig.ConfigSubscribtion);
+  }
+  const adminConfig = await getInitConfig(originConfig.ConfigFile, originConfig.ConfigSubscribtion);
     cachedConfig = adminConfig;
     if (storage && typeof (storage as any).setAdminConfig === 'function') {
       await (storage as any).setAdminConfig(adminConfig);
     }
 
     return;
-  }
 }
 
 export async function getCacheTime(): Promise<number> {

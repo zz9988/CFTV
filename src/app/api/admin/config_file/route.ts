@@ -60,6 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     adminConfig.ConfigFile = configFile;
+    if (!adminConfig.ConfigSubscribtion) {
+      adminConfig.ConfigSubscribtion = {
+        URL: '',
+        AutoUpdate: false,
+        LastCheck: '',
+      };
+    }
 
     // 更新订阅配置
     if (subscriptionUrl !== undefined) {
@@ -68,7 +75,6 @@ export async function POST(request: NextRequest) {
     if (autoUpdate !== undefined) {
       adminConfig.ConfigSubscribtion.AutoUpdate = autoUpdate;
     }
-    // 更新最后检查时间 - 使用前端传递的时间或当前时间
     adminConfig.ConfigSubscribtion.LastCheck = lastCheckTime || '';
 
     adminConfig = refineConfig(adminConfig);

@@ -2,9 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db } from '@/lib/db';
+import { db, getStorage } from '@/lib/db';
 import { fetchVideoDetail } from '@/lib/fetchVideoDetail';
 import { SearchResult } from '@/lib/types';
+import { getConfig, refineConfig } from '@/lib/config';
 
 export const runtime = 'edge';
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Cron job triggered:', new Date().toISOString());
 
-    refreshRecordAndFavorites();
+    cronJob();
 
     return NextResponse.json({
       success: true,
@@ -35,14 +36,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function refreshRecordAndFavorites() {
-  if (
-    (process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage') === 'localstorage'
-  ) {
-    console.log('跳过刷新：当前使用 localstorage 存储模式');
-    return;
-  }
+async function cronJob() {
+  await refreshConfig();
+  await refreshRecordAndFavorites();
+}
 
+async function refreshConfig() {
+  let config = await getConfig();
+  if (config && config.ConfigSubscribtion && config.ConfigSubscribtion.URL && config.ConfigSubscribtion.AutoUpdate) {
+    try {
+      const response = await fetch(config.ConfigSubscribtion.URL);
+
+      if (!response.ok) {
+        throw new Error(`请求失败: ${response.status} ${response.statusText}`);
+      }
+
+      const configContent = await response.text();
+
+      // 对 configContent 进行 base58 解码
+      let decodedContent;
+      try {
+        const bs58 = (await import('bs58')).default;
+        const decodedBytes = bs58.decode(configContent);
+        decodedContent = new TextDecoder().decode(decodedBytes);
+      } catch (decodeError) {
+        console.warn('Base58 解码失败:', decodeError);
+        throw decodeError;
+      }
+
+      try {
+        JSON.parse(decodedContent);
+      } catch (e) {
+        throw new Error('配置文件格式错误，请检查 JSON 语法');
+      }
+      config.ConfigFile = decodedContent;
+      config = refineConfig(config);
+      const storage = getStorage();
+      if (storage && typeof (storage as any).setAdminConfig === 'function') {
+        await (storage as any).setAdminConfig(config);
+      }
+    } catch (e) {
+      console.error('刷新配置失败:', e);
+    }
+  } else {
+    console.log('跳过刷新：未配置订阅地址或自动更新');
+  }
+}
+
+async function refreshRecordAndFavorites() {
   try {
     const users = await db.getAllUsers();
     if (process.env.USERNAME && !users.includes(process.env.USERNAME)) {

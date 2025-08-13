@@ -16,9 +16,10 @@ const inter = Inter({ subsets: ['latin'] });
 
 // 动态生成 metadata，支持配置更新后的标题变化
 export async function generateMetadata(): Promise<Metadata> {
+  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+  const config = await getConfig();
   let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
-  if (process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'upstash') {
-    const config = await getConfig();
+  if (storageType !== 'localstorage') {
     siteName = config.SiteConfig.SiteName;
   }
 
@@ -52,7 +53,12 @@ export default async function RootLayout({
   let doubanImageProxy = process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '';
   let disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
-  if (storageType !== 'upstash' && storageType !== 'localstorage') {
+  let customCategories = [] as {
+    name: string;
+    type: 'movie' | 'tv';
+    query: string;
+  }[];
+  if (storageType !== 'localstorage') {
     const config = await getConfig();
     siteName = config.SiteConfig.SiteName;
     announcement = config.SiteConfig.Announcement;
@@ -62,6 +68,13 @@ export default async function RootLayout({
     doubanImageProxyType = config.SiteConfig.DoubanImageProxyType;
     doubanImageProxy = config.SiteConfig.DoubanImageProxy;
     disableYellowFilter = config.SiteConfig.DisableYellowFilter;
+    customCategories = config.CustomCategories.filter(
+      (category) => !category.disabled
+    ).map((category) => ({
+      name: category.name || '',
+      type: category.type,
+      query: category.query,
+    }));
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
@@ -73,6 +86,7 @@ export default async function RootLayout({
     DOUBAN_IMAGE_PROXY_TYPE: doubanImageProxyType,
     DOUBAN_IMAGE_PROXY: doubanImageProxy,
     DISABLE_YELLOW_FILTER: disableYellowFilter,
+    CUSTOM_CATEGORIES: customCategories,
   };
 
   return (

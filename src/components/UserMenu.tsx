@@ -432,13 +432,12 @@ export const UserMenu: React.FC = () => {
                 当前用户
               </span>
               <span
-                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                  (authInfo?.role || 'user') === 'owner'
+                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${(authInfo?.role || 'user') === 'owner'
                     ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
                     : (authInfo?.role || 'user') === 'admin'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                }`}
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                  }`}
               >
                 {getRoleText(authInfo?.role || 'user')}
               </span>
@@ -517,13 +516,12 @@ export const UserMenu: React.FC = () => {
                 updateStatus &&
                 updateStatus !== UpdateStatus.FETCH_FAILED && (
                   <div
-                    className={`w-2 h-2 rounded-full -translate-y-2 ${
-                      updateStatus === UpdateStatus.HAS_UPDATE
+                    className={`w-2 h-2 rounded-full -translate-y-2 ${updateStatus === UpdateStatus.HAS_UPDATE
                         ? 'bg-yellow-500'
                         : updateStatus === UpdateStatus.NO_UPDATE
-                        ? 'bg-green-400'
-                        : ''
-                    }`}
+                          ? 'bg-green-400'
+                          : ''
+                      }`}
                   ></div>
                 )}
             </div>
@@ -555,7 +553,7 @@ export const UserMenu: React.FC = () => {
               className='px-2 py-1 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border border-red-200 hover:border-red-300 dark:border-red-800 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors'
               title='重置为默认设置'
             >
-              重置
+              恢复默认
             </button>
           </div>
           <button
@@ -596,9 +594,8 @@ export const UserMenu: React.FC = () => {
               {/* 下拉箭头 */}
               <div className='absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none'>
                 <ChevronDown
-                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${
-                    isDoubanDropdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isDoubanDropdownOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </div>
 
@@ -613,11 +610,10 @@ export const UserMenu: React.FC = () => {
                         handleDoubanDataSourceChange(option.value);
                         setIsDoubanDropdownOpen(false);
                       }}
-                      className={`w-full px-3 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                        doubanDataSource === option.value
+                      className={`w-full px-3 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 ${doubanDataSource === option.value
                           ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                           : 'text-gray-900 dark:text-gray-100'
-                      }`}
+                        }`}
                     >
                       <span className='truncate'>{option.label}</span>
                       {doubanDataSource === option.value && (
@@ -703,9 +699,8 @@ export const UserMenu: React.FC = () => {
               {/* 下拉箭头 */}
               <div className='absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none'>
                 <ChevronDown
-                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${
-                    isDoubanDropdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isDoubanDropdownOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </div>
 
@@ -720,11 +715,10 @@ export const UserMenu: React.FC = () => {
                         handleDoubanImageProxyTypeChange(option.value);
                         setIsDoubanImageProxyDropdownOpen(false);
                       }}
-                      className={`w-full px-3 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                        doubanImageProxyType === option.value
+                      className={`w-full px-3 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 ${doubanImageProxyType === option.value
                           ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                           : 'text-gray-900 dark:text-gray-100'
-                      }`}
+                        }`}
                     >
                       <span className='truncate'>{option.label}</span>
                       {doubanImageProxyType === option.value && (

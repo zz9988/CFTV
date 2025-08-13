@@ -7,7 +7,6 @@ import { Suspense } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { GetBangumiCalendarData } from '@/lib/bangumi.client';
-import { getCustomCategories } from '@/lib/config.client';
 import {
   getDoubanCategories,
   getDoubanList,
@@ -81,9 +80,10 @@ function DoubanPageClient() {
 
   // 获取自定义分类数据
   useEffect(() => {
-    getCustomCategories().then((categories) => {
-      setCustomCategories(categories);
-    });
+    const runtimeConfig = (window as any).RUNTIME_CONFIG;
+    if (runtimeConfig?.CUSTOM_CATEGORIES?.length > 0) {
+      setCustomCategories(runtimeConfig.CUSTOM_CATEGORIES);
+    }
   }, []);
 
   // 同步最新参数值到 ref

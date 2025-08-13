@@ -14,8 +14,6 @@ import {
   useState,
 } from 'react';
 
-import { getCustomCategories } from '@/lib/config.client';
-
 import { useSite } from './SiteProvider';
 
 interface SidebarContextType {
@@ -150,18 +148,17 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
   ]);
 
   useEffect(() => {
-    getCustomCategories().then((categories) => {
-      if (categories.length > 0) {
-        setMenuItems((prevItems) => [
-          ...prevItems,
-          {
-            icon: Star,
-            label: '自定义',
-            href: '/douban?type=custom',
-          },
-        ]);
-      }
-    });
+    const runtimeConfig = (window as any).RUNTIME_CONFIG;
+    if (runtimeConfig?.CUSTOM_CATEGORIES?.length > 0) {
+      setMenuItems((prevItems) => [
+        ...prevItems,
+        {
+          icon: Star,
+          label: '自定义',
+          href: '/douban?type=custom',
+        },
+      ]);
+    }
   }, []);
 
   return (

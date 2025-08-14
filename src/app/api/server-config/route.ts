@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { CURRENT_VERSION } from '@/lib/version'
 
 import { getConfig } from '@/lib/config';
 
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   const result = {
     SiteName: config.SiteConfig.SiteName,
     StorageType: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage',
+    Version: CURRENT_VERSION,
   };
   return NextResponse.json(result);
 }

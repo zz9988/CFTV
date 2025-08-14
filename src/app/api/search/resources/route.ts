@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getAvailableApiSites, getCacheTime } from '@/lib/config';
+import { getAvailableApiSites } from '@/lib/config';
 
 export const runtime = 'edge';
 

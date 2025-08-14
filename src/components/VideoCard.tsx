@@ -230,6 +230,7 @@ export default function VideoCard({
         showCheckCircle: true,
         showDoubanLink: false,
         showRating: false,
+        showYear: false,
       },
       favorite: {
         showSourceName: true,
@@ -239,6 +240,7 @@ export default function VideoCard({
         showCheckCircle: false,
         showDoubanLink: false,
         showRating: false,
+        showYear: false,
       },
       search: {
         showSourceName: true,
@@ -246,8 +248,9 @@ export default function VideoCard({
         showPlayButton: true,
         showHeart: false,
         showCheckCircle: false,
-        showDoubanLink: !!actualDoubanId,
+        showDoubanLink: false,
         showRating: false,
+        showYear: true,
       },
       douban: {
         showSourceName: false,
@@ -257,6 +260,7 @@ export default function VideoCard({
         showCheckCircle: false,
         showDoubanLink: true,
         showRating: !!rate,
+        showYear: false,
       },
     };
     return configs[from] || configs.search;
@@ -329,6 +333,16 @@ export default function VideoCard({
           </div>
         )}
 
+        {/* 年份徽章 */}
+        {config.showYear && actualYear && actualYear !== 'unknown' && actualYear.trim() !== '' && (
+          <div className={`absolute top-2 bg-black/50 text-white text-xs font-medium px-2 py-1 rounded backdrop-blur-sm shadow-sm transition-all duration-300 ease-out group-hover:opacity-90 ${config.showDoubanLink && actualDoubanId && actualDoubanId !== 0
+            ? 'left-2 group-hover:left-11'
+            : 'left-2'
+            }`}>
+            {actualYear}
+          </div>
+        )}
+
         {/* 徽章 */}
         {config.showRating && rate && (
           <div className='absolute top-2 right-2 bg-pink-500 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-all duration-300 ease-out group-hover:scale-110'>
@@ -362,6 +376,73 @@ export default function VideoCard({
             </div>
           </a>
         )}
+
+        {/* 聚合播放源指示器 */}
+        {isAggregate && items && items.length > 0 && (() => {
+          const uniqueSources = Array.from(new Set(items.map(item => item.source_name)));
+          const sourceCount = uniqueSources.length;
+
+          return (
+            <div className='absolute bottom-2 right-2 opacity-0 transition-all duration-300 ease-in-out delay-75 group-hover:opacity-100'>
+              <div className='relative group/sources'>
+                <div className='bg-gray-700 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:bg-gray-600 hover:scale-[1.1] transition-all duration-300 ease-out cursor-pointer'>
+                  {sourceCount}
+                </div>
+
+                {/* 播放源详情悬浮框 */}
+                {(() => {
+                  // 优先显示的播放源（常见的主流平台）
+                  const prioritySources = ['爱奇艺', '腾讯视频', '优酷', '芒果TV', '哔哩哔哩', 'Netflix', 'Disney+'];
+
+                  // 按优先级排序播放源
+                  const sortedSources = uniqueSources.sort((a, b) => {
+                    const aIndex = prioritySources.indexOf(a);
+                    const bIndex = prioritySources.indexOf(b);
+                    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                    if (aIndex !== -1) return -1;
+                    if (bIndex !== -1) return 1;
+                    return a.localeCompare(b);
+                  });
+
+                  const maxDisplayCount = 6; // 最多显示6个
+                  const displaySources = sortedSources.slice(0, maxDisplayCount);
+                  const hasMore = sortedSources.length > maxDisplayCount;
+                  const remainingCount = sortedSources.length - maxDisplayCount;
+
+                  return (
+                    <div className='absolute bottom-full right-0 mb-2 opacity-0 invisible group-hover/sources:opacity-100 group-hover/sources:visible transition-all duration-200 ease-out delay-100 pointer-events-none z-50'>
+                      <div className='bg-gray-800/90 backdrop-blur-sm text-white text-xs rounded-lg shadow-xl border border-white/10 p-2 min-w-[120px] max-w-[200px]'>
+                        {/* 单列布局 */}
+                        <div className='space-y-1'>
+                          {displaySources.map((sourceName, index) => (
+                            <div key={index} className='flex items-center gap-1.5'>
+                              <div className='w-1 h-1 bg-blue-400 rounded-full flex-shrink-0'></div>
+                              <span className='truncate text-xs' title={sourceName}>
+                                {sourceName}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* 显示更多提示 */}
+                        {hasMore && (
+                          <div className='mt-2 pt-1.5 border-t border-gray-700/50'>
+                            <div className='flex items-center justify-center text-gray-400'>
+                              <span className='text-xs font-medium'>+{remainingCount} 播放源</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 小箭头 */}
+                        <div className='absolute top-full right-3 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-800/90'></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 进度条 */}

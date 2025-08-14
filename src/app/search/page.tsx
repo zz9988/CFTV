@@ -3,7 +3,7 @@
 
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addSearchHistory,
@@ -28,6 +28,7 @@ function SearchPageClient() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentQueryRef = useRef<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -276,7 +277,9 @@ function SearchPageClient() {
 
   useEffect(() => {
     // 当搜索参数变化时更新搜索状态
-    const query = searchParams.get('q');
+    const query = searchParams.get('q') || '';
+    currentQueryRef.current = query.trim();
+
     if (query) {
       setSearchQuery(query);
       fetchSearchResults(query);
@@ -291,10 +294,13 @@ function SearchPageClient() {
   }, [searchParams]);
 
   const fetchSearchResults = async (query: string) => {
+    // 在函数开始时缓存查询参数
+    const cachedQuery = query.trim();
+
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query.trim())}`
+        `/api/search?q=${encodeURIComponent(cachedQuery)}`
       );
       const data = await response.json();
       let results = data.results;
@@ -307,11 +313,18 @@ function SearchPageClient() {
           return !yellowWords.some((word: string) => typeName.includes(word));
         });
       }
+
+      // 在 setSearchResults 之前检查当前页面的 query 与缓存的查询是否一致
+      if (currentQueryRef.current !== cachedQuery) {
+        // 查询已经改变，不需要设置结果，直接返回
+        return;
+      }
+
       setSearchResults(
         results.sort((a: SearchResult, b: SearchResult) => {
           // 优先排序：标题与搜索词完全一致的排在前面
-          const aExactMatch = a.title === query.trim();
-          const bExactMatch = b.title === query.trim();
+          const aExactMatch = a.title === cachedQuery;
+          const bExactMatch = b.title === cachedQuery;
 
           if (aExactMatch && !bExactMatch) return -1;
           if (!aExactMatch && bExactMatch) return 1;

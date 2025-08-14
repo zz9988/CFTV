@@ -70,6 +70,7 @@ async function refreshConfig() {
         throw new Error('配置文件格式错误，请检查 JSON 语法');
       }
       config.ConfigFile = decodedContent;
+      config.ConfigSubscribtion.LastCheck = new Date().toISOString();
       config = refineConfig(config);
       const storage = getStorage();
       if (storage && typeof (storage as any).setAdminConfig === 'function') {

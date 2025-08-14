@@ -110,9 +110,9 @@ export default function VideoCard({
       : 'tv'
     : type;
 
-  // 获取收藏状态
+  // 获取收藏状态（搜索结果页面不检查）
   useEffect(() => {
-    if (from === 'douban' || !actualSource || !actualId) return;
+    if (from === 'douban' || from === 'search' || !actualSource || !actualId) return;
 
     const fetchFavoriteStatus = async () => {
       try {
@@ -143,7 +143,7 @@ export default function VideoCard({
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (from === 'douban' || !actualSource || !actualId) return;
+      if (from === 'douban' || from === 'search' || !actualSource || !actualId) return;
       try {
         if (favorited) {
           // 如果已收藏，删除收藏
@@ -196,18 +196,15 @@ export default function VideoCard({
   const handleClick = useCallback(() => {
     if (from === 'douban') {
       router.push(
-        `/play?title=${encodeURIComponent(actualTitle.trim())}${
-          actualYear ? `&year=${actualYear}` : ''
+        `/play?title=${encodeURIComponent(actualTitle.trim())}${actualYear ? `&year=${actualYear}` : ''
         }${actualSearchType ? `&stype=${actualSearchType}` : ''}`
       );
     } else if (actualSource && actualId) {
       router.push(
         `/play?source=${actualSource}&id=${actualId}&title=${encodeURIComponent(
           actualTitle
-        )}${actualYear ? `&year=${actualYear}` : ''}${
-          isAggregate ? '&prefer=true' : ''
-        }${
-          actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''
+        )}${actualYear ? `&year=${actualYear}` : ''}${isAggregate ? '&prefer=true' : ''
+        }${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''
         }${actualSearchType ? `&stype=${actualSearchType}` : ''}`
       );
     }
@@ -247,7 +244,7 @@ export default function VideoCard({
         showSourceName: true,
         showProgress: false,
         showPlayButton: true,
-        showHeart: !isAggregate,
+        showHeart: false,
         showCheckCircle: false,
         showDoubanLink: !!actualDoubanId,
         showRating: false,
@@ -323,11 +320,10 @@ export default function VideoCard({
               <Heart
                 onClick={handleToggleFavorite}
                 size={20}
-                className={`transition-all duration-300 ease-out ${
-                  favorited
-                    ? 'fill-red-600 stroke-red-600'
-                    : 'fill-transparent stroke-white hover:stroke-red-400'
-                } hover:scale-[1.1]`}
+                className={`transition-all duration-300 ease-out ${favorited
+                  ? 'fill-red-600 stroke-red-600'
+                  : 'fill-transparent stroke-white hover:stroke-red-400'
+                  } hover:scale-[1.1]`}
               />
             )}
           </div>

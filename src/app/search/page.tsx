@@ -18,6 +18,7 @@ import { yellowWords } from '@/lib/yellow';
 import PageLayout from '@/components/PageLayout';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard from '@/components/VideoCard';
+import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchResultFilter';
 
 function SearchPageClient() {
   // 搜索历史
@@ -32,6 +33,19 @@ function SearchPageClient() {
   const [showResults, setShowResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // 过滤器：非聚合与聚合
+  const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'asc' | 'desc' }>({
+    source: 'all',
+    title: 'all',
+    year: 'all',
+    yearOrder: 'desc',
+  });
+  const [filterAgg, setFilterAgg] = useState<{ source: string; title: string; year: string; yearOrder: 'asc' | 'desc' }>({
+    source: 'all',
+    title: 'all',
+    year: 'all',
+    yearOrder: 'desc',
+  });
 
   // 获取默认聚合设置：只读取用户本地设置，默认为 true
   const getDefaultAggregate = () => {
@@ -53,9 +67,8 @@ function SearchPageClient() {
     const map = new Map<string, SearchResult[]>();
     searchResults.forEach((item) => {
       // 使用 title + year + type 作为键，year 必然存在，但依然兜底 'unknown'
-      const key = `${item.title.replaceAll(' ', '')}-${
-        item.year || 'unknown'
-      }-${item.episodes.length === 1 ? 'movie' : 'tv'}`;
+      const key = `${item.title.replaceAll(' ', '')}-${item.year || 'unknown'
+        }-${item.episodes.length === 1 ? 'movie' : 'tv'}`;
       const arr = map.get(key) || [];
       arr.push(item);
       map.set(key, arr);
@@ -93,6 +106,114 @@ function SearchPageClient() {
       }
     });
   }, [searchResults]);
+
+  // 构建筛选选项
+  const filterOptions = useMemo(() => {
+    const sourcesSet = new Map<string, string>();
+    const titlesSet = new Set<string>();
+    const yearsSet = new Set<string>();
+
+    searchResults.forEach((item) => {
+      if (item.source && item.source_name) {
+        sourcesSet.set(item.source, item.source_name);
+      }
+      if (item.title) titlesSet.add(item.title);
+      if (item.year) yearsSet.add(item.year);
+    });
+
+    const sourceOptions: { label: string; value: string }[] = [
+      { label: '全部来源', value: 'all' },
+      ...Array.from(sourcesSet.entries())
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([value, label]) => ({ label, value })),
+    ];
+
+    const titleOptions: { label: string; value: string }[] = [
+      { label: '全部标题', value: 'all' },
+      ...Array.from(titlesSet.values())
+        .sort((a, b) => a.localeCompare(b))
+        .map((t) => ({ label: t, value: t })),
+    ];
+
+    // 年份: 将 unknown 放末尾
+    const years = Array.from(yearsSet.values());
+    const knownYears = years.filter((y) => y !== 'unknown').sort((a, b) => parseInt(b) - parseInt(a));
+    const hasUnknown = years.includes('unknown');
+    const yearOptions: { label: string; value: string }[] = [
+      { label: '全部年份', value: 'all' },
+      ...knownYears.map((y) => ({ label: y, value: y })),
+      ...(hasUnknown ? [{ label: '未知', value: 'unknown' }] : []),
+    ];
+
+    const categoriesAll: SearchFilterCategory[] = [
+      { key: 'source', label: '来源', options: sourceOptions },
+      { key: 'title', label: '标题', options: titleOptions },
+      { key: 'year', label: '年份', options: yearOptions },
+    ];
+
+    const categoriesAgg: SearchFilterCategory[] = [
+      { key: 'source', label: '来源', options: sourceOptions },
+      { key: 'title', label: '标题', options: titleOptions },
+      { key: 'year', label: '年份', options: yearOptions },
+    ];
+
+    return { categoriesAll, categoriesAgg };
+  }, [searchResults]);
+
+  // 年份排序辅助
+  const compareYear = (aYear: string, bYear: string, order: 'asc' | 'desc') => {
+    if (aYear === bYear) return 0;
+    if (aYear === 'unknown') return 1;
+    if (bYear === 'unknown') return -1;
+    const diff = parseInt(aYear) - parseInt(bYear);
+    return order === 'asc' ? diff : -diff;
+  };
+
+  // 非聚合：应用筛选与排序
+  const filteredAllResults = useMemo(() => {
+    const { source, title, year, yearOrder } = filterAll;
+    const filtered = searchResults.filter((item) => {
+      if (source !== 'all' && item.source !== source) return false;
+      if (title !== 'all' && item.title !== title) return false;
+      if (year !== 'all' && item.year !== year) return false;
+      return true;
+    });
+    // 仍保持“精确标题优先”的二级排序
+    return filtered.sort((a, b) => {
+      const yearComp = compareYear(a.year, b.year, yearOrder);
+      if (yearComp !== 0) return yearComp;
+      const aExactMatch = a.title === searchQuery.trim();
+      const bExactMatch = b.title === searchQuery.trim();
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }, [searchResults, filterAll, searchQuery]);
+
+  // 聚合：应用筛选与排序
+  const filteredAggResults = useMemo(() => {
+    const { source, title, year, yearOrder } = filterAgg as any;
+    const filtered = aggregatedResults.filter(([_, group]) => {
+      const gTitle = group[0]?.title ?? '';
+      const gYear = group[0]?.year ?? 'unknown';
+      const hasSource = source === 'all' ? true : group.some((item) => item.source === source);
+      if (!hasSource) return false;
+      if (title !== 'all' && gTitle !== title) return false;
+      if (year !== 'all' && gYear !== year) return false;
+      return true;
+    });
+    return filtered.sort((a, b) => {
+      const aExactMatch = a[1][0].title.replaceAll(' ', '').includes(searchQuery.trim().replaceAll(' ', ''));
+      const bExactMatch = b[1][0].title.replaceAll(' ', '').includes(searchQuery.trim().replaceAll(' ', ''));
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+      const aYear = a[1][0].year;
+      const bYear = b[1][0].year;
+      const yearComp = compareYear(aYear, bYear, yearOrder);
+      if (yearComp !== 0) return yearComp;
+      return a[0].localeCompare(b[0]);
+    });
+  }, [aggregatedResults, filterAgg, searchQuery]);
 
   useEffect(() => {
     // 无搜索参数时聚焦搜索框
@@ -318,24 +439,36 @@ function SearchPageClient() {
             </div>
           ) : showResults ? (
             <section className='mb-12'>
-              {/* 标题 + 聚合开关 */}
-              <div className='mb-8 flex items-center justify-between'>
-                <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
-                  搜索结果
-                </h2>
+              {/* 标题 */}
+              <div className='mb-4'>
+                <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>搜索结果</h2>
+              </div>
+              {/* 筛选器 + 聚合开关 同行 */}
+              <div className='mb-8 flex items-center justify-between gap-3'>
+                <div className='flex-1 min-w-0'>
+                  {viewMode === 'agg' ? (
+                    <SearchResultFilter
+                      categories={filterOptions.categoriesAgg}
+                      values={filterAgg}
+                      onChange={(v) => setFilterAgg(v as any)}
+                    />
+                  ) : (
+                    <SearchResultFilter
+                      categories={filterOptions.categoriesAll}
+                      values={filterAll}
+                      onChange={(v) => setFilterAll(v as any)}
+                    />
+                  )}
+                </div>
                 {/* 聚合开关 */}
-                <label className='flex items-center gap-2 cursor-pointer select-none'>
-                  <span className='text-sm text-gray-700 dark:text-gray-300'>
-                    聚合
-                  </span>
+                <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
+                  <span className='text-sm text-gray-700 dark:text-gray-300'>聚合</span>
                   <div className='relative'>
                     <input
                       type='checkbox'
                       className='sr-only peer'
                       checked={viewMode === 'agg'}
-                      onChange={() =>
-                        setViewMode(viewMode === 'agg' ? 'all' : 'agg')
-                      }
+                      onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
                     />
                     <div className='w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
                     <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
@@ -347,45 +480,45 @@ function SearchPageClient() {
                 className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
               >
                 {viewMode === 'agg'
-                  ? aggregatedResults.map(([mapKey, group]) => {
-                      return (
-                        <div key={`agg-${mapKey}`} className='w-full'>
-                          <VideoCard
-                            from='search'
-                            items={group}
-                            query={
-                              searchQuery.trim() !== group[0].title
-                                ? searchQuery.trim()
-                                : ''
-                            }
-                          />
-                        </div>
-                      );
-                    })
-                  : searchResults.map((item) => (
-                      <div
-                        key={`all-${item.source}-${item.id}`}
-                        className='w-full'
-                      >
+                  ? filteredAggResults.map(([mapKey, group]) => {
+                    return (
+                      <div key={`agg-${mapKey}`} className='w-full'>
                         <VideoCard
-                          id={item.id}
-                          title={item.title}
-                          poster={item.poster}
-                          episodes={item.episodes.length}
-                          source={item.source}
-                          source_name={item.source_name}
-                          douban_id={item.douban_id}
+                          from='search'
+                          items={group}
                           query={
-                            searchQuery.trim() !== item.title
+                            searchQuery.trim() !== group[0].title
                               ? searchQuery.trim()
                               : ''
                           }
-                          year={item.year}
-                          from='search'
-                          type={item.episodes.length > 1 ? 'tv' : 'movie'}
                         />
                       </div>
-                    ))}
+                    );
+                  })
+                  : filteredAllResults.map((item) => (
+                    <div
+                      key={`all-${item.source}-${item.id}`}
+                      className='w-full'
+                    >
+                      <VideoCard
+                        id={item.id}
+                        title={item.title}
+                        poster={item.poster}
+                        episodes={item.episodes.length}
+                        source={item.source}
+                        source_name={item.source_name}
+                        douban_id={item.douban_id}
+                        query={
+                          searchQuery.trim() !== item.title
+                            ? searchQuery.trim()
+                            : ''
+                        }
+                        year={item.year}
+                        from='search'
+                        type={item.episodes.length > 1 ? 'tv' : 'movie'}
+                      />
+                    </div>
+                  ))}
                 {searchResults.length === 0 && (
                   <div className='col-span-full text-center text-gray-500 py-8 dark:text-gray-400'>
                     未找到相关结果
@@ -446,11 +579,10 @@ function SearchPageClient() {
       {/* 返回顶部悬浮按钮 */}
       <button
         onClick={scrollToTop}
-        className={`fixed bottom-20 md:bottom-6 right-6 z-[500] w-12 h-12 bg-green-500/90 hover:bg-green-500 text-white rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ease-in-out flex items-center justify-center group ${
-          showBackToTop
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-4 pointer-events-none'
-        }`}
+        className={`fixed bottom-20 md:bottom-6 right-6 z-[500] w-12 h-12 bg-green-500/90 hover:bg-green-500 text-white rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ease-in-out flex items-center justify-center group ${showBackToTop
+          ? 'opacity-100 translate-y-0 pointer-events-auto'
+          : 'opacity-0 translate-y-4 pointer-events-none'
+          }`}
         aria-label='返回顶部'
       >
         <ChevronUp className='w-6 h-6 transition-transform group-hover:scale-110' />

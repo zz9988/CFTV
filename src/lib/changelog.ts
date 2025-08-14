@@ -11,6 +11,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.2.0",
+    date: "2025-08-14",
+    added: [
+    "搜索结果支持按播放源、标题和年份筛选，支持按年份排序",
+    "搜索界面视频卡片展示年份信息，聚合卡片展示播放源"
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复 /api/search/resources 返回空的问题",
+    "修复 upstash 实例无法编辑自定义分类的问题"
+    ]
+  },
+  {
     version: "2.1.0",
     date: "2025-08-13",
     added: [

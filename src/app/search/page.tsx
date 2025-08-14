@@ -160,13 +160,19 @@ function SearchPageClient() {
     return { categoriesAll, categoriesAgg };
   }, [searchResults]);
 
-  // 年份排序辅助
+  // 年份排序辅助：无年份/unknown/非数字 一律视为未知，始终排在最后
   const compareYear = (aYear: string, bYear: string, order: 'asc' | 'desc') => {
-    if (aYear === bYear) return 0;
-    if (aYear === 'unknown') return 1;
-    if (bYear === 'unknown') return -1;
-    const diff = parseInt(aYear) - parseInt(bYear);
-    return order === 'asc' ? diff : -diff;
+    const normalize = (y?: string) => {
+      if (!y || y === 'unknown') return null;
+      const n = parseInt(y, 10);
+      return Number.isNaN(n) ? null : n;
+    };
+    const aN = normalize(aYear);
+    const bN = normalize(bYear);
+    if (aN === null && bN === null) return 0;
+    if (aN === null) return 1; // a 无效，放后
+    if (bN === null) return -1; // b 无效，放后
+    return order === 'asc' ? aN - bN : bN - aN;
   };
 
   // 非聚合：应用筛选与排序

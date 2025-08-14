@@ -51,7 +51,9 @@ const SearchResultFilter: React.FC<SearchResultFilterProps> = ({ categories, val
       const isMobile = viewportWidth < 768;
 
       let x = rect.left;
-      let dropdownWidth = Math.max(rect.width, 240);
+      // 为标题筛选设置更大的最小宽度，其他保持原来的最小宽度
+      const minWidth = categoryKey === 'title' ? 400 : 240;
+      let dropdownWidth = Math.max(rect.width, minWidth);
       let useFixedWidth = false;
 
       if (isMobile) {
@@ -191,16 +193,16 @@ const SearchResultFilter: React.FC<SearchResultFilterProps> = ({ categories, val
       {activeCategory && createPortal(
         <div
           ref={dropdownRef}
-          className='fixed z-[9999] bg-white/95 dark:bg-gray-800/95 rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm'
+          className='fixed z-[9999] bg-white/95 dark:bg-gray-800/95 rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm max-h-[50vh] flex flex-col'
           style={{
             left: `${dropdownPosition.x}px`,
             top: `${dropdownPosition.y}px`,
-            ...(typeof window !== 'undefined' && window.innerWidth < 768 ? { width: `${dropdownPosition.width}px` } : { minWidth: `${Math.max(dropdownPosition.width, 240)}px` }),
+            ...(typeof window !== 'undefined' && window.innerWidth < 768 ? { width: `${dropdownPosition.width}px` } : { minWidth: `${Math.max(dropdownPosition.width, activeCategory === 'title' ? 400 : 240)}px` }),
             maxWidth: '600px',
             position: 'fixed',
           }}
         >
-          <div className='p-2 sm:p-4'>
+          <div className='p-2 sm:p-4 overflow-y-auto flex-1 min-h-0'>
             <div className='grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 sm:gap-2'>
               {categories.find((cat) => cat.key === activeCategory)?.options.map((option) => (
                 <button

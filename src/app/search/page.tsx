@@ -481,7 +481,7 @@ function SearchPageClient() {
                 </div>
                 {/* 聚合开关 */}
                 <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
-                  <span className='text-sm text-gray-700 dark:text-gray-300'>聚合</span>
+                  <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>聚合</span>
                   <div className='relative'>
                     <input
                       type='checkbox'

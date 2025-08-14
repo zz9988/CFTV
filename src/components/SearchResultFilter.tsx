@@ -111,15 +111,19 @@ const SearchResultFilter: React.FC<SearchResultFilterProps> = ({ categories, val
 
   useEffect(() => {
     const handleScroll = () => {
-      if (activeCategory) calculateDropdownPosition(activeCategory);
+      // 滚动时直接关闭面板，而不是重新计算位置
+      if (activeCategory) {
+        setActiveCategory(null);
+      }
     };
     const handleResize = () => {
       if (activeCategory) calculateDropdownPosition(activeCategory);
     };
-    window.addEventListener('scroll', handleScroll);
+    // 监听 body 滚动事件，因为该项目的滚动容器是 document.body
+    document.body.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      document.body.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
   }, [activeCategory]);

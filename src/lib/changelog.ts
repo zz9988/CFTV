@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.2.1",
+    date: "2025-08-14",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复了筛选 panel 打开时滚动页面 panel 不跟随的问题"
+    ]
+  },
+  {
     version: "2.2.0",
     date: "2025-08-14",
     added: [

@@ -343,6 +343,27 @@ export class UpstashRedisStorage implements IStorage {
 
     return configs;
   }
+
+  // 清空所有数据
+  async clearAllData(): Promise<void> {
+    try {
+      // 获取所有用户
+      const allUsers = await this.getAllUsers();
+
+      // 删除所有用户及其数据
+      for (const username of allUsers) {
+        await this.deleteUser(username);
+      }
+
+      // 删除管理员配置
+      await withRetry(() => this.client.del(this.adminConfigKey()));
+
+      console.log('所有数据已清空');
+    } catch (error) {
+      console.error('清空数据失败:', error);
+      throw new Error('清空数据失败');
+    }
+  }
 }
 
 // 单例 Upstash Redis 客户端

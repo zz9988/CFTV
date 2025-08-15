@@ -25,6 +25,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Database,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -39,6 +40,7 @@ import Swal from 'sweetalert2';
 import { AdminConfig, AdminConfigResult } from '@/lib/admin.types';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 
+import DataMigration from '@/components/DataMigration';
 import PageLayout from '@/components/PageLayout';
 
 // 统一弹窗方法（必须在首次使用前定义）
@@ -2042,6 +2044,7 @@ function AdminPageClient() {
     siteConfig: false,
     categoryConfig: false,
     configFile: false,
+    dataMigration: false,
   });
 
   // 获取管理员配置
@@ -2229,6 +2232,23 @@ function AdminPageClient() {
             >
               <CategoryConfig config={config} refreshConfig={fetchConfig} />
             </CollapsibleTab>
+
+            {/* 数据迁移标签 - 仅站长可见 */}
+            {role === 'owner' && (
+              <CollapsibleTab
+                title='数据迁移'
+                icon={
+                  <Database
+                    size={20}
+                    className='text-gray-600 dark:text-gray-400'
+                  />
+                }
+                isExpanded={expandedTabs.dataMigration}
+                onToggle={() => toggleTab('dataMigration')}
+              >
+                <DataMigration onRefreshConfig={fetchConfig} />
+              </CollapsibleTab>
+            )}
           </div>
         </div>
       </div>

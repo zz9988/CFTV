@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (authInfo.username !== process.env.USERNAME) {
       return NextResponse.json(
         { error: '权限不足，只有站长可以拉取配置订阅' },
-        { status: 403 }
+        { status: 401 }
       );
     }
 

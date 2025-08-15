@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (username !== process.env.USERNAME) {
       return NextResponse.json(
         { error: '权限不足，只有站长可以修改配置文件' },
-        { status: 403 }
+        { status: 401 }
       );
     }
 

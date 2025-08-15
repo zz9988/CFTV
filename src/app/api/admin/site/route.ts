@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
-import { getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export const runtime = 'edge';
 
@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
     }
 
     const adminConfig = await getConfig();
-    const storage = getStorage();
 
     // 权限校验
     if (username !== process.env.USERNAME) {
@@ -93,9 +92,7 @@ export async function POST(request: NextRequest) {
     };
 
     // 写入数据库
-    if (storage && typeof (storage as any).setAdminConfig === 'function') {
-      await (storage as any).setAdminConfig(adminConfig);
-    }
+    await db.saveAdminConfig(adminConfig);
 
     return NextResponse.json(
       { ok: true },

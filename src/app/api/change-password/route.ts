@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
-import { getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 import { IStorage } from '@/lib/types';
 
 export const runtime = 'edge';
@@ -46,17 +46,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取存储实例
-    const storage: IStorage | null = getStorage();
-    if (!storage || typeof storage.changePassword !== 'function') {
-      return NextResponse.json(
-        { error: '存储服务不支持修改密码' },
-        { status: 500 }
-      );
-    }
-
     // 修改密码
-    await storage.changePassword(username, newPassword);
+    await db.changePassword(username, newPassword);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

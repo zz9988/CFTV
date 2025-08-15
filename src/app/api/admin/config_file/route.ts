@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig, refineConfig } from '@/lib/config';
-import { getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
   try {
     // 检查用户权限
     let adminConfig = await getConfig();
-    const storage = getStorage();
 
     // 仅站长可以修改配置文件
     if (username !== process.env.USERNAME) {
@@ -77,19 +76,11 @@ export async function POST(request: NextRequest) {
 
     adminConfig = refineConfig(adminConfig);
     // 更新配置文件
-    if (storage && typeof (storage as any).setAdminConfig === 'function') {
-      await (storage as any).setAdminConfig(adminConfig);
-
-      return NextResponse.json({
-        success: true,
-        message: '配置文件更新成功',
-      });
-    } else {
-      return NextResponse.json(
-        { error: '存储服务不可用' },
-        { status: 500 }
-      );
-    }
+    await db.saveAdminConfig(adminConfig);
+    return NextResponse.json({
+      success: true,
+      message: '配置文件更新成功',
+    });
   } catch (error) {
     console.error('更新配置文件失败:', error);
     return NextResponse.json(

@@ -29,7 +29,7 @@ function createStorage(): IStorage {
 // 单例存储实例
 let storageInstance: IStorage | null = null;
 
-export function getStorage(): IStorage {
+function getStorage(): IStorage {
   if (!storageInstance) {
     storageInstance = createStorage();
   }
@@ -140,6 +140,14 @@ export class DbManager {
   // 检查用户是否已存在
   async checkUserExist(userName: string): Promise<boolean> {
     return this.storage.checkUserExist(userName);
+  }
+
+  async changePassword(userName: string, newPassword: string): Promise<void> {
+    await this.storage.changePassword(userName, newPassword);
+  }
+
+  async deleteUser(userName: string): Promise<void> {
+    await this.storage.deleteUser(userName);
   }
 
   // ---------- 搜索历史 ----------

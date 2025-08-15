@@ -4,8 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
-import { getStorage } from '@/lib/db';
-import { IStorage } from '@/lib/types';
+import { db } from '@/lib/db';
 
 export const runtime = 'edge';
 
@@ -75,7 +74,6 @@ export async function POST(request: NextRequest) {
 
     // 获取配置与存储
     const adminConfig = await getConfig();
-    const storage: IStorage | null = getStorage();
 
     // 判定操作者角色
     let operatorRole: 'owner' | 'admin';
@@ -125,13 +123,7 @@ export async function POST(request: NextRequest) {
               { status: 400 }
             );
           }
-          if (!storage || typeof storage.registerUser !== 'function') {
-            return NextResponse.json(
-              { error: '存储未配置用户注册' },
-              { status: 500 }
-            );
-          }
-          await storage.registerUser(targetUsername!, targetPassword);
+          await db.registerUser(targetUsername!, targetPassword);
           // 更新配置
           adminConfig.UserConfig.Users.push({
             username: targetUsername!,
@@ -139,7 +131,7 @@ export async function POST(request: NextRequest) {
           });
           targetEntry =
             adminConfig.UserConfig.Users[
-              adminConfig.UserConfig.Users.length - 1
+            adminConfig.UserConfig.Users.length - 1
             ];
           break;
         }
@@ -254,14 +246,7 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          if (!storage || typeof storage.changePassword !== 'function') {
-            return NextResponse.json(
-              { error: '存储未配置密码修改功能' },
-              { status: 500 }
-            );
-          }
-
-          await storage.changePassword(targetUsername!, targetPassword);
+          await db.changePassword(targetUsername!, targetPassword);
           break;
         }
         case 'deleteUser': {
@@ -287,14 +272,7 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          if (!storage || typeof storage.deleteUser !== 'function') {
-            return NextResponse.json(
-              { error: '存储未配置用户删除功能' },
-              { status: 500 }
-            );
-          }
-
-          await storage.deleteUser(targetUsername!);
+          await db.deleteUser(targetUsername!);
 
           // 从配置中移除用户
           const userIndex = adminConfig.UserConfig.Users.findIndex(
@@ -312,9 +290,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 将更新后的配置写入数据库
-    if (storage && typeof (storage as any).setAdminConfig === 'function') {
-      await (storage as any).setAdminConfig(adminConfig);
-    }
+    await db.saveAdminConfig(adminConfig);
 
     return NextResponse.json(
       { ok: true },

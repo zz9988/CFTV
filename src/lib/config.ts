@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion */
 
-import { getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 
 import { AdminConfig } from './admin.types';
 
@@ -178,14 +178,11 @@ async function getInitConfig(configFile: string, subConfig: {
   };
 
   // 补充用户信息
-  const storage = getStorage();
   let userNames: string[] = [];
-  if (storage && typeof (storage as any).getAllUsers === 'function') {
-    try {
-      userNames = await (storage as any).getAllUsers();
-    } catch (e) {
-      console.error('获取用户列表失败:', e);
-    }
+  try {
+    userNames = await db.getAllUsers();
+  } catch (e) {
+    console.error('获取用户列表失败:', e);
   }
   const allUsers = userNames.filter((u) => u !== process.env.USERNAME).map((u) => ({
     username: u,
@@ -232,10 +229,11 @@ export async function getConfig(): Promise<AdminConfig> {
   }
 
   // 读 db
-  const storage = getStorage();
   let adminConfig: AdminConfig | null = null;
-  if (storage && typeof (storage as any).getAdminConfig === 'function') {
-    adminConfig = await (storage as any).getAdminConfig();
+  try {
+    adminConfig = await db.getAdminConfig();
+  } catch (e) {
+    console.error('获取管理员配置失败:', e);
   }
 
   // db 中无配置，执行一次初始化
@@ -247,20 +245,20 @@ export async function getConfig(): Promise<AdminConfig> {
 }
 
 export async function resetConfig() {
-  let originConfig: AdminConfig;
-  const storage = getStorage();
-  if (storage && typeof (storage as any).getAdminConfig === 'function') {
-    originConfig = await (storage as any).getAdminConfig();
-  } else {
+  let originConfig: AdminConfig | null = null;
+  try {
+    originConfig = await db.getAdminConfig();
+  } catch (e) {
+    console.error('获取管理员配置失败:', e);
+  }
+  if (!originConfig) {
     originConfig = {} as AdminConfig;
   }
   const adminConfig = await getInitConfig(originConfig.ConfigFile, originConfig.ConfigSubscribtion);
-    cachedConfig = adminConfig;
-    if (storage && typeof (storage as any).setAdminConfig === 'function') {
-      await (storage as any).setAdminConfig(adminConfig);
-    }
+  cachedConfig = adminConfig;
+  await db.saveAdminConfig(adminConfig);
 
-    return;
+  return;
 }
 
 export async function getCacheTime(): Promise<number> {
@@ -276,4 +274,8 @@ export async function getAvailableApiSites(): Promise<ApiSite[]> {
     api: s.api,
     detail: s.detail,
   }));
+}
+
+export async function setCachedConfig(config: AdminConfig) {
+  cachedConfig = config;
 }

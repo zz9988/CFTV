@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getConfig, refineConfig } from '@/lib/config';
-import { db, getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 import { fetchVideoDetail } from '@/lib/fetchVideoDetail';
 import { SearchResult } from '@/lib/types';
 
@@ -72,10 +72,7 @@ async function refreshConfig() {
       config.ConfigFile = decodedContent;
       config.ConfigSubscribtion.LastCheck = new Date().toISOString();
       config = refineConfig(config);
-      const storage = getStorage();
-      if (storage && typeof (storage as any).setAdminConfig === 'function') {
-        await (storage as any).setAdminConfig(config);
-      }
+      await db.saveAdminConfig(config);
     } catch (e) {
       console.error('刷新配置失败:', e);
     }

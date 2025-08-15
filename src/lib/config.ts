@@ -247,8 +247,23 @@ export async function getConfig(): Promise<AdminConfig> {
 }
 
 export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
+  // 确保必要的属性存在和初始化
+  if (!adminConfig.UserConfig) {
+    adminConfig.UserConfig = { AllowRegister: false, Users: [] };
+  }
+  if (!adminConfig.UserConfig.Users || !Array.isArray(adminConfig.UserConfig.Users)) {
+    adminConfig.UserConfig.Users = [];
+  }
+  if (!adminConfig.SourceConfig || !Array.isArray(adminConfig.SourceConfig)) {
+    adminConfig.SourceConfig = [];
+  }
+  if (!adminConfig.CustomCategories || !Array.isArray(adminConfig.CustomCategories)) {
+    adminConfig.CustomCategories = [];
+  }
+
   // 站长变更自检
   const ownerUser = process.env.USERNAME;
+
   // 去重
   const seenUsernames = new Set<string>();
   adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => {

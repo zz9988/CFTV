@@ -63,6 +63,23 @@ function SearchPageClient() {
     return getDefaultAggregate() ? 'agg' : 'all';
   });
 
+  // 简化的年份排序：unknown/空值始终在最后
+  const compareYear = (aYear: string, bYear: string, order: 'asc' | 'desc') => {
+    // 处理空值和unknown
+    const aIsEmpty = !aYear || aYear === 'unknown';
+    const bIsEmpty = !bYear || bYear === 'unknown';
+
+    if (aIsEmpty && bIsEmpty) return 0;
+    if (aIsEmpty) return 1; // a 在后
+    if (bIsEmpty) return -1; // b 在后
+
+    // 都是有效年份，按数字比较
+    const aNum = parseInt(aYear, 10);
+    const bNum = parseInt(bYear, 10);
+
+    return order === 'asc' ? aNum - bNum : bNum - aNum;
+  };
+
   // 聚合后的结果（按标题和年份分组）
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
@@ -74,38 +91,8 @@ function SearchPageClient() {
       arr.push(item);
       map.set(key, arr);
     });
-    return Array.from(map.entries()).sort((a, b) => {
-      // 优先排序：标题与搜索词完全一致的排在前面
-      const aExactMatch = a[1][0].title
-        .replaceAll(' ', '')
-        .includes(searchQuery.trim().replaceAll(' ', ''));
-      const bExactMatch = b[1][0].title
-        .replaceAll(' ', '')
-        .includes(searchQuery.trim().replaceAll(' ', ''));
-
-      if (aExactMatch && !bExactMatch) return -1;
-      if (!aExactMatch && bExactMatch) return 1;
-
-      // 年份排序
-      if (a[1][0].year === b[1][0].year) {
-        return a[0].localeCompare(b[0]);
-      } else {
-        // 处理 unknown 的情况
-        const aYear = a[1][0].year;
-        const bYear = b[1][0].year;
-
-        if (aYear === 'unknown' && bYear === 'unknown') {
-          return 0;
-        } else if (aYear === 'unknown') {
-          return 1; // a 排在后面
-        } else if (bYear === 'unknown') {
-          return -1; // b 排在后面
-        } else {
-          // 都是数字年份，按数字大小排序（大的在前面）
-          return aYear > bYear ? -1 : 1;
-        }
-      }
-    });
+    // 只进行聚合，不进行排序。排序统一在 filteredAggResults 中完成
+    return Array.from(map.entries());
   }, [searchResults]);
 
   // 构建筛选选项
@@ -161,21 +148,6 @@ function SearchPageClient() {
     return { categoriesAll, categoriesAgg };
   }, [searchResults]);
 
-  // 年份排序辅助：无年份/unknown/非数字 一律视为未知，始终排在最后
-  const compareYear = (aYear: string, bYear: string, order: 'asc' | 'desc') => {
-    const normalize = (y?: string) => {
-      if (!y || y === 'unknown') return null;
-      const n = parseInt(y, 10);
-      return Number.isNaN(n) ? null : n;
-    };
-    const aN = normalize(aYear);
-    const bN = normalize(bYear);
-    if (aN === null && bN === null) return 0;
-    if (aN === null) return 1; // a 无效，放后
-    if (bN === null) return -1; // b 无效，放后
-    return order === 'asc' ? aN - bN : bN - aN;
-  };
-
   // 非聚合：应用筛选与排序
   const filteredAllResults = useMemo(() => {
     const { source, title, year, yearOrder } = filterAll;
@@ -185,15 +157,22 @@ function SearchPageClient() {
       if (year !== 'all' && item.year !== year) return false;
       return true;
     });
-    // 仍保持“精确标题优先”的二级排序
+    // 简化排序：1. 年份排序，2. 年份相同时精确匹配在前，3. 标题排序
     return filtered.sort((a, b) => {
+      // 首先按年份排序
       const yearComp = compareYear(a.year, b.year, yearOrder);
       if (yearComp !== 0) return yearComp;
+
+      // 年份相同时，精确匹配在前
       const aExactMatch = a.title === searchQuery.trim();
       const bExactMatch = b.title === searchQuery.trim();
       if (aExactMatch && !bExactMatch) return -1;
       if (!aExactMatch && bExactMatch) return 1;
-      return a.title.localeCompare(b.title);
+
+      // 最后按标题排序，正序时字母序，倒序时反字母序
+      return yearOrder === 'asc' ?
+        a.title.localeCompare(b.title) :
+        b.title.localeCompare(a.title);
     });
   }, [searchResults, filterAll, searchQuery]);
 
@@ -209,16 +188,26 @@ function SearchPageClient() {
       if (year !== 'all' && gYear !== year) return false;
       return true;
     });
+    // 简化排序：1. 年份排序，2. 年份相同时精确匹配在前，3. 标题排序
     return filtered.sort((a, b) => {
-      const aExactMatch = a[1][0].title.replaceAll(' ', '').includes(searchQuery.trim().replaceAll(' ', ''));
-      const bExactMatch = b[1][0].title.replaceAll(' ', '').includes(searchQuery.trim().replaceAll(' ', ''));
-      if (aExactMatch && !bExactMatch) return -1;
-      if (!aExactMatch && bExactMatch) return 1;
+      // 首先按年份排序
       const aYear = a[1][0].year;
       const bYear = b[1][0].year;
       const yearComp = compareYear(aYear, bYear, yearOrder);
       if (yearComp !== 0) return yearComp;
-      return a[0].localeCompare(b[0]);
+
+      // 年份相同时，精确匹配在前
+      const aExactMatch = a[1][0].title === searchQuery.trim();
+      const bExactMatch = b[1][0].title === searchQuery.trim();
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+
+      // 最后按标题排序，正序时字母序，倒序时反字母序
+      const aTitle = a[1][0].title;
+      const bTitle = b[1][0].title;
+      return yearOrder === 'asc' ?
+        aTitle.localeCompare(bTitle) :
+        bTitle.localeCompare(aTitle);
     });
   }, [aggregatedResults, filterAgg, searchQuery]);
 
@@ -320,33 +309,8 @@ function SearchPageClient() {
         return;
       }
 
-      setSearchResults(
-        results.sort((a: SearchResult, b: SearchResult) => {
-          // 优先排序：标题与搜索词完全一致的排在前面
-          const aExactMatch = a.title === cachedQuery;
-          const bExactMatch = b.title === cachedQuery;
-
-          if (aExactMatch && !bExactMatch) return -1;
-          if (!aExactMatch && bExactMatch) return 1;
-
-          // 如果都匹配或都不匹配，则按原来的逻辑排序
-          if (a.year === b.year) {
-            return a.title.localeCompare(b.title);
-          } else {
-            // 处理 unknown 的情况
-            if (a.year === 'unknown' && b.year === 'unknown') {
-              return 0;
-            } else if (a.year === 'unknown') {
-              return 1; // a 排在后面
-            } else if (b.year === 'unknown') {
-              return -1; // b 排在后面
-            } else {
-              // 都是数字年份，按数字大小排序（大的在前面）
-              return parseInt(a.year) > parseInt(b.year) ? -1 : 1;
-            }
-          }
-        })
-      );
+      // 不在这里进行排序，让 filteredAllResults 和 filteredAggResults 处理所有排序逻辑
+      setSearchResults(results);
       setShowResults(true);
     } catch (error) {
       setSearchResults([]);

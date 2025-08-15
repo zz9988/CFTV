@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAvailableApiSites } from '@/lib/config';

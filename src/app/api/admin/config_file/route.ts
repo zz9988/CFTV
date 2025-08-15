@@ -28,14 +28,12 @@ export async function POST(request: NextRequest) {
     let adminConfig = await getConfig();
     const storage = getStorage();
 
+    // 仅站长可以修改配置文件
     if (username !== process.env.USERNAME) {
-      const user = adminConfig.UserConfig.Users.find((u) => u.username === username);
-      if (!user || user.role !== 'admin' || user.banned) {
-        return NextResponse.json(
-          { error: '权限不足，只有管理员可以修改配置文件' },
-          { status: 403 }
-        );
-      }
+      return NextResponse.json(
+        { error: '权限不足，只有站长可以修改配置文件' },
+        { status: 403 }
+      );
     }
 
     // 获取请求体

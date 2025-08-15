@@ -1,11 +1,11 @@
-/* eslint-disable no-console */
+/* eslint-disable no-console,@typescript-eslint/no-explicit-any */
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getConfig, refineConfig } from '@/lib/config';
 import { db, getStorage } from '@/lib/db';
 import { fetchVideoDetail } from '@/lib/fetchVideoDetail';
 import { SearchResult } from '@/lib/types';
-import { getConfig, refineConfig } from '@/lib/config';
 
 export const runtime = 'edge';
 

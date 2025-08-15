@@ -1,7 +1,24 @@
+/* eslint-disable no-console */
+
 import { NextRequest, NextResponse } from 'next/server';
+
+import { getAuthInfoFromCookie } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // 权限检查：仅站长可以拉取配置订阅
+    const authInfo = getAuthInfoFromCookie(request);
+    if (!authInfo || !authInfo.username) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (authInfo.username !== process.env.USERNAME) {
+      return NextResponse.json(
+        { error: '权限不足，只有站长可以拉取配置订阅' },
+        { status: 403 }
+      );
+    }
+
     const { url } = await request.json();
 
     if (!url) {
@@ -27,7 +44,7 @@ export async function POST(request: NextRequest) {
       const decodedBytes = bs58.decode(configContent);
       decodedContent = new TextDecoder().decode(decodedBytes);
     } catch (decodeError) {
-      console.warn('Base58 解码失败，返回原始内容:', decodeError);
+      console.warn('Base58 解码失败', decodeError);
       throw decodeError;
     }
 

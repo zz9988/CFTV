@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { CURRENT_VERSION } from '@/lib/version'
 
 import { getConfig } from '@/lib/config';
+import { CURRENT_VERSION } from '@/lib/version'
 
 export const runtime = 'edge';
 

@@ -16,9 +16,9 @@ import { SearchResult } from '@/lib/types';
 import { yellowWords } from '@/lib/yellow';
 
 import PageLayout from '@/components/PageLayout';
+import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchResultFilter';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard from '@/components/VideoCard';
-import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchResultFilter';
 
 function SearchPageClient() {
   // 搜索历史

@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.4.0",
+    date: "2025-08-15",
+    added: [
+    "支持 kvrocks 存储（持久化 kv 存储）"
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复搜索结果排序不稳定的问题",
+    "导入数据时同时更新内存缓存的管理员配置"
+    ]
+  },
+  {
     version: "2.3.0",
     date: "2025-08-15",
     added: [

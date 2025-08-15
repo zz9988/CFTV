@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.3.0",
+    date: "2025-08-15",
+    added: [
+    "支持站长导入导出整站数据"
+    ],
+    changed: [
+    "仅允许站长操作配置文件",
+    "微调搜索结果过滤面板的移动端样式"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "2.2.1",
     date: "2025-08-14",
     added: [

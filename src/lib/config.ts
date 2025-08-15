@@ -240,8 +240,59 @@ export async function getConfig(): Promise<AdminConfig> {
   if (!adminConfig) {
     adminConfig = await getInitConfig("");
   }
+  adminConfig = configSelfCheck(adminConfig);
   cachedConfig = adminConfig;
+  db.saveAdminConfig(cachedConfig);
   return cachedConfig;
+}
+
+export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
+  // 站长变更自检
+  const ownerUser = process.env.USERNAME;
+  // 去重
+  const seenUsernames = new Set<string>();
+  adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => {
+    if (seenUsernames.has(user.username)) {
+      return false;
+    }
+    seenUsernames.add(user.username);
+    return true;
+  });
+  // 过滤站长
+  adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => user.username !== ownerUser);
+  // 其他用户不得拥有 owner 权限
+  adminConfig.UserConfig.Users.forEach((user) => {
+    if (user.role === 'owner') {
+      user.role = 'user';
+    }
+  });
+  // 重新添加回站长
+  adminConfig.UserConfig.Users.unshift({
+    username: ownerUser!,
+    role: 'owner',
+    banned: false,
+  });
+
+  // 采集源去重
+  const seenSourceKeys = new Set<string>();
+  adminConfig.SourceConfig = adminConfig.SourceConfig.filter((source) => {
+    if (seenSourceKeys.has(source.key)) {
+      return false;
+    }
+    seenSourceKeys.add(source.key);
+    return true;
+  });
+
+  // 自定义分类去重
+  const seenCustomCategoryKeys = new Set<string>();
+  adminConfig.CustomCategories = adminConfig.CustomCategories.filter((category) => {
+    if (seenCustomCategoryKeys.has(category.query + category.type)) {
+      return false;
+    }
+    seenCustomCategoryKeys.add(category.query + category.type);
+    return true;
+  });
+  return adminConfig;
 }
 
 export async function resetConfig() {

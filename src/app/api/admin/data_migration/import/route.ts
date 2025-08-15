@@ -7,7 +7,7 @@ import { gunzip } from 'zlib';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { SimpleCrypto } from '@/lib/crypto';
 import { db } from '@/lib/db';
-import { setCachedConfig } from '@/lib/config';
+import { configSelfCheck, setCachedConfig } from '@/lib/config';
 
 const gunzipAsync = promisify(gunzip);
 
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     await db.clearAllData();
 
     // 导入管理员配置
+    importData.data.adminConfig = configSelfCheck(importData.data.adminConfig);
     await db.saveAdminConfig(importData.data.adminConfig);
     await setCachedConfig(importData.data.adminConfig);
 

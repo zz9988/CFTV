@@ -80,6 +80,9 @@ export async function POST(req: NextRequest) {
       exportData.data.userData[username] = userData;
     }
 
+    // 覆盖站长密码
+    exportData.data.userData[process.env.USERNAME].password = process.env.PASSWORD;
+
     // 将数据转换为JSON字符串
     const jsonData = JSON.stringify(exportData);
 

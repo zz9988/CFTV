@@ -57,6 +57,11 @@ export async function GET(request: Request) {
     }
     const cacheTime = await getCacheTime();
 
+    if (flattenedResults.length === 0) {
+      // no cache if empty
+      return NextResponse.json({ results: [] }, { status: 200 });
+    }
+
     return NextResponse.json(
       { results: flattenedResults },
       {

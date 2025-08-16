@@ -3,7 +3,7 @@
 import { Heart, Link, PlayCircleIcon, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   deleteFavorite,
@@ -38,7 +38,7 @@ interface VideoCardProps {
   isBangumi?: boolean;
 }
 
-export default function VideoCard({
+function VideoCard({
   id,
   title = '',
   query = '',
@@ -478,3 +478,40 @@ export default function VideoCard({
     </div>
   );
 }
+
+// 自定义 props 比较，避免不必要的重渲染，减少卡片闪烁
+function arePropsEqual(prev: VideoCardProps, next: VideoCardProps) {
+  // 基础字段对比
+  const basicEqual =
+    prev.id === next.id &&
+    prev.title === next.title &&
+    prev.query === next.query &&
+    prev.poster === next.poster &&
+    prev.episodes === next.episodes &&
+    prev.source === next.source &&
+    prev.source_name === next.source_name &&
+    prev.year === next.year &&
+    prev.from === next.from &&
+    prev.type === next.type &&
+    prev.douban_id === next.douban_id;
+
+  if (!basicEqual) return false;
+
+  // 聚合 items 仅对比长度与首个元素的关键标识，避免每次新数组导致重渲染
+  const prevLen = prev.items?.length || 0;
+  const nextLen = next.items?.length || 0;
+  if (prevLen !== nextLen) return false;
+  if (prevLen === 0) return true;
+
+  const prevFirst = prev.items![0];
+  const nextFirst = next.items![0];
+  return (
+    prevFirst.id === nextFirst.id &&
+    prevFirst.source === nextFirst.source &&
+    prevFirst.title === nextFirst.title &&
+    prevFirst.poster === nextFirst.poster &&
+    prevFirst.year === nextFirst.year
+  );
+}
+
+export default memo(VideoCard, arePropsEqual);

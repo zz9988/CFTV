@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, ArrowUpDown } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -27,7 +27,7 @@ const DEFAULTS: Record<SearchFilterKey, string> = {
   source: 'all',
   title: 'all',
   year: 'all',
-  yearOrder: 'desc',
+  yearOrder: 'none',
 };
 
 const SearchResultFilter: React.FC<SearchResultFilterProps> = ({ categories, values, onChange }) => {
@@ -171,17 +171,32 @@ const SearchResultFilter: React.FC<SearchResultFilterProps> = ({ categories, val
         <div className='relative'>
           <button
             onClick={() => {
-              const next = mergedValues.yearOrder === 'desc' ? 'asc' : 'desc';
+              let next;
+              switch (mergedValues.yearOrder) {
+                case 'none':
+                  next = 'desc';
+                  break;
+                case 'desc':
+                  next = 'asc';
+                  break;
+                case 'asc':
+                  next = 'none';
+                  break;
+                default:
+                  next = 'desc';
+              }
               onChange({ ...mergedValues, yearOrder: next });
             }}
-            className={`relative z-10 px-1.5 py-0.5 sm:px-2 sm:py-1 md:px-4 md:py-2 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${mergedValues.yearOrder === 'desc'
+            className={`relative z-10 px-1.5 py-0.5 sm:px-2 sm:py-1 md:px-4 md:py-2 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${mergedValues.yearOrder === 'none'
               ? 'text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 cursor-pointer'
               : 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 cursor-pointer'
               }`}
-            aria-label={`按年份${mergedValues.yearOrder === 'desc' ? '降序' : '升序'}排序`}
+            aria-label={`按年份${mergedValues.yearOrder === 'none' ? '排序' : mergedValues.yearOrder === 'desc' ? '降序' : '升序'}排序`}
           >
             <span>年份</span>
-            {mergedValues.yearOrder === 'desc' ? (
+            {mergedValues.yearOrder === 'none' ? (
+              <ArrowUpDown className='inline-block ml-1 w-4 h-4 sm:w-4 sm:h-4' />
+            ) : mergedValues.yearOrder === 'desc' ? (
               <ArrowDownWideNarrow className='inline-block ml-1 w-4 h-4 sm:w-4 sm:h-4' />
             ) : (
               <ArrowUpNarrowWide className='inline-block ml-1 w-4 h-4 sm:w-4 sm:h-4' />

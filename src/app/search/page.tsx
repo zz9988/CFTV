@@ -35,17 +35,17 @@ function SearchPageClient() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // 过滤器：非聚合与聚合
-  const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'asc' | 'desc' }>({
+  const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
     source: 'all',
     title: 'all',
     year: 'all',
-    yearOrder: 'desc',
+    yearOrder: 'none',
   });
-  const [filterAgg, setFilterAgg] = useState<{ source: string; title: string; year: string; yearOrder: 'asc' | 'desc' }>({
+  const [filterAgg, setFilterAgg] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
     source: 'all',
     title: 'all',
     year: 'all',
-    yearOrder: 'desc',
+    yearOrder: 'none',
   });
 
   // 获取默认聚合设置：只读取用户本地设置，默认为 true
@@ -64,7 +64,10 @@ function SearchPageClient() {
   });
 
   // 简化的年份排序：unknown/空值始终在最后
-  const compareYear = (aYear: string, bYear: string, order: 'asc' | 'desc') => {
+  const compareYear = (aYear: string, bYear: string, order: 'none' | 'asc' | 'desc') => {
+    // 如果是无排序状态，返回0（保持原顺序）
+    if (order === 'none') return 0;
+
     // 处理空值和unknown
     const aIsEmpty = !aYear || aYear === 'unknown';
     const bIsEmpty = !bYear || bYear === 'unknown';
@@ -83,16 +86,25 @@ function SearchPageClient() {
   // 聚合后的结果（按标题和年份分组）
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
+    const keyOrder: string[] = []; // 记录键出现的顺序
+
     searchResults.forEach((item) => {
       // 使用 title + year + type 作为键，year 必然存在，但依然兜底 'unknown'
       const key = `${item.title.replaceAll(' ', '')}-${item.year || 'unknown'
         }-${item.episodes.length === 1 ? 'movie' : 'tv'}`;
       const arr = map.get(key) || [];
+
+      // 如果是新的键，记录其顺序
+      if (arr.length === 0) {
+        keyOrder.push(key);
+      }
+
       arr.push(item);
       map.set(key, arr);
     });
-    // 只进行聚合，不进行排序。排序统一在 filteredAggResults 中完成
-    return Array.from(map.entries());
+
+    // 按出现顺序返回聚合结果
+    return keyOrder.map(key => [key, map.get(key)!] as [string, SearchResult[]]);
   }, [searchResults]);
 
   // 构建筛选选项
@@ -157,6 +169,12 @@ function SearchPageClient() {
       if (year !== 'all' && item.year !== year) return false;
       return true;
     });
+
+    // 如果是无排序状态，直接返回过滤后的原始顺序
+    if (yearOrder === 'none') {
+      return filtered;
+    }
+
     // 简化排序：1. 年份排序，2. 年份相同时精确匹配在前，3. 标题排序
     return filtered.sort((a, b) => {
       // 首先按年份排序
@@ -188,6 +206,12 @@ function SearchPageClient() {
       if (year !== 'all' && gYear !== year) return false;
       return true;
     });
+
+    // 如果是无排序状态，保持按关键字+年份+类型出现的原始顺序
+    if (yearOrder === 'none') {
+      return filtered;
+    }
+
     // 简化排序：1. 年份排序，2. 年份相同时精确匹配在前，3. 标题排序
     return filtered.sort((a, b) => {
       // 首先按年份排序

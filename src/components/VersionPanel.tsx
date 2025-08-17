@@ -48,6 +48,28 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
     return () => setMounted(false);
   }, []);
 
+  // Body 滚动锁定 - 使用 overflow 方式避免布局问题
+  useEffect(() => {
+    if (isOpen) {
+      const body = document.body;
+      const html = document.documentElement;
+
+      // 保存原始样式
+      const originalBodyOverflow = body.style.overflow;
+      const originalHtmlOverflow = html.style.overflow;
+
+      // 只设置 overflow 来阻止滚动
+      body.style.overflow = 'hidden';
+      html.style.overflow = 'hidden';
+
+      return () => {
+        // 恢复所有原始样式
+        body.style.overflow = originalBodyOverflow;
+        html.style.overflow = originalHtmlOverflow;
+      };
+    }
+  }, [isOpen]);
+
   // 获取远程变更日志
   useEffect(() => {
     if (isOpen) {
@@ -268,21 +290,16 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
       <div
         className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000]'
         onClick={onClose}
-        onTouchStart={(e) => {
-          // 阻止触摸事件冒泡，防止背景滚动
-          e.preventDefault();
-        }}
         onTouchMove={(e) => {
-          // 阻止触摸移动，防止背景滚动
+          // 只阻止滚动，允许其他触摸事件
           e.preventDefault();
-          e.stopPropagation();
         }}
-        onTouchEnd={(e) => {
-          // 阻止触摸结束事件，防止背景滚动
+        onWheel={(e) => {
+          // 阻止滚轮滚动
           e.preventDefault();
         }}
         style={{
-          touchAction: 'none', // 禁用所有触摸操作
+          touchAction: 'none',
         }}
       />
 

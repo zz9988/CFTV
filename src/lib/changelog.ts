@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.7.0",
+    date: "2025-08-17",
+    added: [
+    "视频卡片新增移动端操作面板，优化触控屏操作体验"
+    ],
+    changed: [
+    "优化集数标题的匹配和展示逻辑"
+    ],
+    fixed: [
+    "修复设置面板和修改密码面板背景可被拖动的问题"
+    ]
+  },
+  {
     version: "2.6.0",
     date: "2025-08-17",
     added: [

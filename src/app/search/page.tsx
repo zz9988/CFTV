@@ -68,6 +68,26 @@ function SearchPageClient() {
     return getDefaultAggregate() ? 'agg' : 'all';
   });
 
+  // 在“无排序”场景用于每个源批次的预排序：完全匹配标题优先，其次年份倒序，未知年份最后
+  const sortBatchForNoOrder = (items: SearchResult[]) => {
+    const q = currentQueryRef.current.trim();
+    return items.slice().sort((a, b) => {
+      const aExact = (a.title || '').trim() === q;
+      const bExact = (b.title || '').trim() === q;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      const aNum = Number.parseInt(a.year as any, 10);
+      const bNum = Number.parseInt(b.year as any, 10);
+      const aValid = !Number.isNaN(aNum);
+      const bValid = !Number.isNaN(bNum);
+      if (aValid && !bValid) return -1;
+      if (!aValid && bValid) return 1;
+      if (aValid && bValid) return bNum - aNum; // 年份倒序
+      return 0;
+    });
+  };
+
   // 简化的年份排序：unknown/空值始终在最后
   const compareYear = (aYear: string, bYear: string, order: 'none' | 'asc' | 'desc') => {
     // 如果是无排序状态，返回0（保持原顺序）
@@ -335,10 +355,15 @@ function SearchPageClient() {
               setCompletedSources((prev) => prev + 1);
               if (Array.isArray(payload.results) && payload.results.length > 0) {
                 // 缓冲新增结果，节流刷入，避免频繁重渲染导致闪烁
-                pendingResultsRef.current.push(...payload.results);
+                const activeYearOrder = (viewMode === 'agg' ? (filterAgg.yearOrder) : (filterAll.yearOrder));
+                const incoming: SearchResult[] =
+                  activeYearOrder === 'none'
+                    ? sortBatchForNoOrder(payload.results as SearchResult[])
+                    : (payload.results as SearchResult[]);
+                pendingResultsRef.current.push(...incoming);
                 if (!flushTimerRef.current) {
                   flushTimerRef.current = window.setTimeout(() => {
-                    const toAppend = pendingResultsRef.current;
+                    let toAppend = pendingResultsRef.current;
                     pendingResultsRef.current = [];
                     startTransition(() => {
                       setSearchResults((prev) => prev.concat(toAppend));
@@ -356,7 +381,7 @@ function SearchPageClient() {
               setCompletedSources(payload.completedSources || totalSources);
               // 完成前确保将缓冲写入
               if (pendingResultsRef.current.length > 0) {
-                const toAppend = pendingResultsRef.current;
+                let toAppend = pendingResultsRef.current;
                 pendingResultsRef.current = [];
                 if (flushTimerRef.current) {
                   clearTimeout(flushTimerRef.current);
@@ -380,7 +405,7 @@ function SearchPageClient() {
         setIsLoading(false);
         // 错误时也清空缓冲
         if (pendingResultsRef.current.length > 0) {
-          const toAppend = pendingResultsRef.current;
+          let toAppend = pendingResultsRef.current;
           pendingResultsRef.current = [];
           if (flushTimerRef.current) {
             clearTimeout(flushTimerRef.current);

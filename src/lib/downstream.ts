@@ -58,6 +58,9 @@ async function searchWithCache(
     }
 
     const data = await response.json();
+    if (apiSite.key === 'xiaomaomi') {
+      console.log(data);
+    }
     if (
       !data ||
       !data.list ||
@@ -69,7 +72,7 @@ async function searchWithCache(
     }
 
     // 处理结果数据
-    const results = data.list.map((item: ApiSearchItem) => {
+    const allResults = data.list.map((item: ApiSearchItem) => {
       let episodes: string[] = [];
       let titles: string[] = [];
 
@@ -116,6 +119,9 @@ async function searchWithCache(
         douban_id: item.vod_douban_id,
       };
     });
+
+    // 过滤掉集数为 0 的结果
+    const results = allResults.filter((result: SearchResult) => result.episodes.length > 0);
 
     const pageCount = page === 1 ? data.pagecount || 1 : undefined;
     // 写入缓存（成功）

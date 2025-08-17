@@ -261,6 +261,7 @@ networks:
 NEXT_PUBLIC_DOUBAN_PROXY_TYPE 选项解释：
 
 - direct: 由服务器直接请求豆瓣源站
+- melody-cdn-sharon: 浏览器向豆瓣 CDN 请求数据，该 CDN 由 [旋律](https://github.com/JohnsonRan) 搭建，并由 Sharon cdn 提供加速
 - cors-proxy-zwei: 浏览器向 cors proxy 请求豆瓣数据，该 cors proxy 由 [Zwei](https://github.com/bestzwei) 搭建
 - cmliussss-cdn-tencent: 浏览器向豆瓣 CDN 请求数据，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由腾讯云 cdn 提供加速
 - cmliussss-cdn-ali: 浏览器向豆瓣 CDN 请求数据，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由阿里云 cdn 提供加速
@@ -272,6 +273,7 @@ NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE 选项解释：
 - direct：由浏览器直接请求豆瓣分配的默认图片域名
 - server：由服务器代理请求豆瓣分配的默认图片域名
 - img3：由浏览器请求豆瓣官方的精品 cdn（阿里云）
+- melody-cdn-sharon: 由浏览器请求豆瓣 CDN，该 CDN 由 [旋律](https://github.com/JohnsonRan) 搭建，并由 Sharon cdn 提供加速
 - cmliussss-cdn-tencent：由浏览器请求豆瓣 CDN，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由腾讯云 cdn 提供加速
 - cmliussss-cdn-ali：由浏览器请求豆瓣 CDN，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由阿里云 cdn 提供加速
 - custom: 用户自定义 proxy，由 NEXT_PUBLIC_DOUBAN_IMAGE_PROXY 定义

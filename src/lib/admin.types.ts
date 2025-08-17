@@ -15,6 +15,7 @@ export interface AdminConfig {
     DoubanImageProxyType: string;
     DoubanImageProxy: string;
     DisableYellowFilter: boolean;
+    FluidSearch: boolean;
   };
   UserConfig: {
     AllowRegister: boolean;

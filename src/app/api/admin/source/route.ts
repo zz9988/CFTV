@@ -5,7 +5,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
-import { IStorage } from '@/lib/types';
 
 export const runtime = 'edge';
 

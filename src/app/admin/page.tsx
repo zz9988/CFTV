@@ -67,6 +67,7 @@ interface SiteConfig {
   DoubanImageProxyType: string;
   DoubanImageProxy: string;
   DisableYellowFilter: boolean;
+  FluidSearch: boolean;
 }
 
 // 视频源数据类型
@@ -1284,7 +1285,7 @@ const CategoryConfig = ({
 };
 
 // 新增配置文件组件
-const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminConfig | null; refreshConfig: () => Promise<void>; role: 'owner' | 'admin' | null }) => {
+const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
   const [configContent, setConfigContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [subscriptionUrl, setSubscriptionUrl] = useState('');
@@ -1292,8 +1293,7 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
   const [fetching, setFetching] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<string>('');
 
-  // 检查是否为站长
-  const isOwner = role === 'owner';
+
 
   useEffect(() => {
     if (config?.ConfigFile) {
@@ -1386,22 +1386,8 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
 
   return (
     <div className='space-y-4'>
-      {/* 非站长用户权限提示 */}
-      {!isOwner && (
-        <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4'>
-          <div className='flex items-center gap-2'>
-            <div className='w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center'>
-              <span className='text-white text-xs font-bold'>!</span>
-            </div>
-            <p className='text-amber-800 dark:text-amber-300 text-sm font-medium'>
-              配置文件模块仅站长可编辑，您只能查看配置内容
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* 配置订阅区域 */}
-      <div className={`bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm ${!isOwner ? 'opacity-60' : ''}`}>
+      <div className='bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm'>
         <div className='flex items-center justify-between mb-6'>
           <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
             配置订阅
@@ -1422,8 +1408,8 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
               value={subscriptionUrl}
               onChange={(e) => setSubscriptionUrl(e.target.value)}
               placeholder='https://example.com/config.json'
-              disabled={!isOwner}
-              className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 ${!isOwner ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}`}
+              disabled={false}
+              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
             />
             <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
               输入配置文件的订阅地址，要求 JSON 格式，且使用 Base58 编码
@@ -1434,8 +1420,8 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
           <div className='pt-2'>
             <button
               onClick={handleFetchConfig}
-              disabled={!isOwner || fetching || !subscriptionUrl.trim()}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${!isOwner || fetching || !subscriptionUrl.trim()
+              disabled={fetching || !subscriptionUrl.trim()}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${fetching || !subscriptionUrl.trim()
                 ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
                 : 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
                 }`}
@@ -1464,13 +1450,10 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
             <button
               type='button'
               onClick={() => setAutoUpdate(!autoUpdate)}
-              disabled={!isOwner}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${!isOwner
-                ? 'cursor-not-allowed opacity-50'
-                : ''
-                } ${autoUpdate
-                  ? 'bg-green-600'
-                  : 'bg-gray-200 dark:bg-gray-700'
+              disabled={false}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
+                ? 'bg-green-600'
+                : 'bg-gray-200 dark:bg-gray-700'
                 }`}
             >
               <span
@@ -1492,8 +1475,8 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
             onChange={(e) => setConfigContent(e.target.value)}
             rows={20}
             placeholder='请输入配置文件内容（JSON 格式）...'
-            disabled={!isOwner}
-            className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 ${!isOwner ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}`}
+            disabled={false}
+            className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500'
             style={{
               fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
             }}
@@ -1508,8 +1491,8 @@ const ConfigFileComponent = ({ config, refreshConfig, role }: { config: AdminCon
           </div>
           <button
             onClick={handleSave}
-            disabled={!isOwner || saving}
-            className={`px-4 py-2 rounded-lg transition-colors ${!isOwner || saving
+            disabled={saving}
+            className={`px-4 py-2 rounded-lg transition-colors ${saving
               ? 'bg-gray-400 cursor-not-allowed text-white'
               : 'bg-green-600 hover:bg-green-700 text-white'
               }`}
@@ -1534,6 +1517,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
     DoubanImageProxyType: 'direct',
     DoubanImageProxy: '',
     DisableYellowFilter: false,
+    FluidSearch: true,
   });
   // 保存状态
   const [saving, setSaving] = useState(false);
@@ -1560,7 +1544,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
   const doubanImageProxyTypeOptions = [
     { value: 'direct', label: '直连（浏览器直接请求豆瓣）' },
     { value: 'server', label: '服务器代理（由服务器代理请求豆瓣）' },
-    { value: 'img3', label: '豆瓣精品 CDN（阿里云）' },
+    { value: 'img3', label: '豆瓣官方精品 CDN（阿里云）' },
     {
       value: 'cmliussss-cdn-tencent',
       label: '豆瓣 CDN By CMLiussss（腾讯云）',
@@ -1598,6 +1582,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           config.SiteConfig.DoubanImageProxyType || 'direct',
         DoubanImageProxy: config.SiteConfig.DoubanImageProxy || '',
         DisableYellowFilter: config.SiteConfig.DisableYellowFilter || false,
+        FluidSearch: config.SiteConfig.FluidSearch || true,
       });
     }
   }, [config]);
@@ -2016,6 +2001,41 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         </p>
       </div>
 
+      {/* 流式搜索 */}
+      <div>
+        <div className='flex items-center justify-between'>
+          <label
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            启用流式搜索
+          </label>
+          <button
+            type='button'
+            onClick={() =>
+              setSiteSettings((prev) => ({
+                ...prev,
+                FluidSearch: !prev.FluidSearch,
+              }))
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.FluidSearch
+              ? 'bg-green-600'
+              : 'bg-gray-200 dark:bg-gray-700'
+              }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${siteSettings.FluidSearch
+                ? 'translate-x-6'
+                : 'translate-x-1'
+                }`}
+            />
+          </button>
+        </div>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          启用后搜索结果将实时流式返回，提升用户体验。
+        </p>
+      </div>
+
+
       {/* 操作按钮 */}
       <div className='flex justify-end'>
         <button
@@ -2159,20 +2179,22 @@ function AdminPageClient() {
             )}
           </div>
 
-          {/* 配置文件标签 */}
-          <CollapsibleTab
-            title='配置文件'
-            icon={
-              <FileText
-                size={20}
-                className='text-gray-600 dark:text-gray-400'
-              />
-            }
-            isExpanded={expandedTabs.configFile}
-            onToggle={() => toggleTab('configFile')}
-          >
-            <ConfigFileComponent config={config} refreshConfig={fetchConfig} role={role} />
-          </CollapsibleTab>
+          {/* 配置文件标签 - 仅站长可见 */}
+          {role === 'owner' && (
+            <CollapsibleTab
+              title='配置文件'
+              icon={
+                <FileText
+                  size={20}
+                  className='text-gray-600 dark:text-gray-400'
+                />
+              }
+              isExpanded={expandedTabs.configFile}
+              onToggle={() => toggleTab('configFile')}
+            >
+              <ConfigFileComponent config={config} refreshConfig={fetchConfig} />
+            </CollapsibleTab>
+          )}
 
           {/* 站点配置标签 */}
           <CollapsibleTab

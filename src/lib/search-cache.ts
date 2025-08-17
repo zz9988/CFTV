@@ -66,10 +66,7 @@ export function setCachedSearchPage(
   // 惰性清理：每次写入时检查是否需要清理
   const now = Date.now();
   if (now - lastCleanupTime > CACHE_CLEANUP_INTERVAL_MS) {
-    const stats = performCacheCleanup();
-    if (stats.expired > 0 || stats.sizeLimited > 0) {
-      console.log(`🧹 惰性缓存清理: 删除过期${stats.expired}项，删除超限${stats.sizeLimited}项，剩余${stats.total}项`);
-    }
+    performCacheCleanup();
   }
 
   const key = makeSearchCacheKey(sourceKey, query, page);
@@ -87,7 +84,6 @@ export function setCachedSearchPage(
 function ensureAutoCleanupStarted(): void {
   if (!cleanupTimer) {
     startAutoCleanup();
-    console.log(`🚀 启动自动缓存清理，间隔${CACHE_CLEANUP_INTERVAL_MS / 1000}秒，最大缓存${MAX_CACHE_SIZE}项`);
   }
 }
 
@@ -138,10 +134,7 @@ function startAutoCleanup(): void {
   if (cleanupTimer) return; // 避免重复启动
 
   cleanupTimer = setInterval(() => {
-    const stats = performCacheCleanup();
-    if (stats.expired > 0 || stats.sizeLimited > 0) {
-      console.log(`🧹 自动缓存清理: 删除过期${stats.expired}项，删除超限${stats.sizeLimited}项，剩余${stats.total}项`);
-    }
+    performCacheCleanup();
   }, CACHE_CLEANUP_INTERVAL_MS);
 
   // 在 Node.js 环境中避免阻止程序退出

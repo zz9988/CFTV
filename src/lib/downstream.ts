@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { API_CONFIG, ApiSite, getConfig } from '@/lib/config';
+import { getCachedSearchPage, setCachedSearchPage } from '@/lib/search-cache';
 import { SearchResult } from '@/lib/types';
 import { cleanHtmlTags } from '@/lib/utils';
-import { getCachedSearchPage, setCachedSearchPage } from '@/lib/search-cache';
 
 interface ApiSearchItem {
   vod_id: string;
@@ -24,17 +26,14 @@ async function searchWithCache(
   query: string,
   page: number,
   url: string,
-  timeoutMs: number = 5000
+  timeoutMs = 5000
 ): Promise<{ results: SearchResult[]; pageCount?: number }> {
   // 先查缓存
   const cached = getCachedSearchPage(apiSite.key, query, page);
   if (cached) {
     if (cached.status === 'ok') {
-      console.log(`🎯 缓存命中 [${apiSite.key}] query="${query}" page=${page} status=ok results=${cached.data.length}`);
       return { results: cached.data, pageCount: cached.pageCount };
     } else {
-      console.log(`🚫 缓存命中 [${apiSite.key}] query="${query}" page=${page} status=${cached.status} - 返回空结果`);
-      // timeout / forbidden 命中缓存，直接返回空
       return { results: [] };
     }
   }
@@ -144,7 +143,7 @@ export async function searchFromApi(
 
     // 使用新的缓存搜索函数处理第一页
     const firstPageResult = await searchWithCache(apiSite, query, 1, apiUrl, 5000);
-    let results = firstPageResult.results;
+    const results = firstPageResult.results;
     const pageCountFromFirst = firstPageResult.pageCount;
 
     const config = await getConfig();

@@ -5,9 +5,9 @@ import { promisify } from 'util';
 import { gunzip } from 'zlib';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
+import { configSelfCheck, setCachedConfig } from '@/lib/config';
 import { SimpleCrypto } from '@/lib/crypto';
 import { db } from '@/lib/db';
-import { configSelfCheck, setCachedConfig } from '@/lib/config';
 
 const gunzipAsync = promisify(gunzip);
 

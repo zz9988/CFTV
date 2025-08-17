@@ -53,6 +53,7 @@ export default async function RootLayout({
   let doubanImageProxy = process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '';
   let disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
+  let fluidSearch = process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false';
   let customCategories = [] as {
     name: string;
     type: 'movie' | 'tv';
@@ -75,6 +76,7 @@ export default async function RootLayout({
       type: category.type,
       query: category.query,
     }));
+    fluidSearch = config.SiteConfig.FluidSearch;
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
@@ -87,6 +89,7 @@ export default async function RootLayout({
     DOUBAN_IMAGE_PROXY: doubanImageProxy,
     DISABLE_YELLOW_FILTER: disableYellowFilter,
     CUSTOM_CATEGORIES: customCategories,
+    FLUID_SEARCH: fluidSearch,
   };
 
   return (

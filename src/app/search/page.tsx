@@ -1,9 +1,9 @@
-/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any,@typescript-eslint/no-non-null-assertion,no-empty */
 'use client';
 
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import React, { startTransition, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addSearchHistory,
@@ -13,7 +13,6 @@ import {
   subscribeToDataUpdates,
 } from '@/lib/db.client';
 import { SearchResult } from '@/lib/types';
-
 
 import PageLayout from '@/components/PageLayout';
 import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchResultFilter';
@@ -39,6 +38,7 @@ function SearchPageClient() {
   const [completedSources, setCompletedSources] = useState(0);
   const pendingResultsRef = useRef<SearchResult[]>([]);
   const flushTimerRef = useRef<number | null>(null);
+  const [useFluidSearch, setUseFluidSearch] = useState(true);
   // 聚合卡片 refs 与聚合统计缓存
   const groupRefs = useRef<Map<string, React.RefObject<VideoCardHandle>>>(new Map());
   const groupStatsRef = useRef<Map<string, { douban_id?: number; episodes?: number; source_names: string[] }>>(new Map());
@@ -323,6 +323,18 @@ function SearchPageClient() {
     // 初始加载搜索历史
     getSearchHistory().then(setSearchHistory);
 
+    // 读取流式搜索设置
+    if (typeof window !== 'undefined') {
+      const savedFluidSearch = localStorage.getItem('fluidSearch');
+      const defaultFluidSearch =
+        (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
+      if (savedFluidSearch !== null) {
+        setUseFluidSearch(JSON.parse(savedFluidSearch));
+      } else if (defaultFluidSearch !== undefined) {
+        setUseFluidSearch(defaultFluidSearch);
+      }
+    }
+
     // 监听搜索历史更新事件
     const unsubscribe = subscribeToDataUpdates(
       'searchHistoryUpdated',
@@ -392,90 +404,134 @@ function SearchPageClient() {
       }
       setIsLoading(true);
       setShowResults(true);
-      // 打开新的流式连接
+
       const trimmed = query.trim();
-      const es = new EventSource(`/api/search/ws?q=${encodeURIComponent(trimmed)}`);
-      eventSourceRef.current = es;
 
-      es.onmessage = (event) => {
-        if (!event.data) return;
-        try {
-          const payload = JSON.parse(event.data);
-          if (currentQueryRef.current !== trimmed) return;
-          switch (payload.type) {
-            case 'start':
-              setTotalSources(payload.totalSources || 0);
-              setCompletedSources(0);
-              break;
-            case 'source_result': {
-              setCompletedSources((prev) => prev + 1);
-              if (Array.isArray(payload.results) && payload.results.length > 0) {
-                // 缓冲新增结果，节流刷入，避免频繁重渲染导致闪烁
-                const activeYearOrder = (viewMode === 'agg' ? (filterAgg.yearOrder) : (filterAll.yearOrder));
-                const incoming: SearchResult[] =
-                  activeYearOrder === 'none'
-                    ? sortBatchForNoOrder(payload.results as SearchResult[])
-                    : (payload.results as SearchResult[]);
-                pendingResultsRef.current.push(...incoming);
-                if (!flushTimerRef.current) {
-                  flushTimerRef.current = window.setTimeout(() => {
-                    let toAppend = pendingResultsRef.current;
-                    pendingResultsRef.current = [];
-                    startTransition(() => {
-                      setSearchResults((prev) => prev.concat(toAppend));
-                    });
+      // 每次搜索时重新读取设置，确保使用最新的配置
+      let currentFluidSearch = useFluidSearch;
+      if (typeof window !== 'undefined') {
+        const savedFluidSearch = localStorage.getItem('fluidSearch');
+        if (savedFluidSearch !== null) {
+          currentFluidSearch = JSON.parse(savedFluidSearch);
+        } else {
+          const defaultFluidSearch = (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
+          currentFluidSearch = defaultFluidSearch;
+        }
+      }
+
+      // 如果读取的配置与当前状态不同，更新状态
+      if (currentFluidSearch !== useFluidSearch) {
+        setUseFluidSearch(currentFluidSearch);
+      }
+
+      if (currentFluidSearch) {
+        // 流式搜索：打开新的流式连接
+        const es = new EventSource(`/api/search/ws?q=${encodeURIComponent(trimmed)}`);
+        eventSourceRef.current = es;
+
+        es.onmessage = (event) => {
+          if (!event.data) return;
+          try {
+            const payload = JSON.parse(event.data);
+            if (currentQueryRef.current !== trimmed) return;
+            switch (payload.type) {
+              case 'start':
+                setTotalSources(payload.totalSources || 0);
+                setCompletedSources(0);
+                break;
+              case 'source_result': {
+                setCompletedSources((prev) => prev + 1);
+                if (Array.isArray(payload.results) && payload.results.length > 0) {
+                  // 缓冲新增结果，节流刷入，避免频繁重渲染导致闪烁
+                  const activeYearOrder = (viewMode === 'agg' ? (filterAgg.yearOrder) : (filterAll.yearOrder));
+                  const incoming: SearchResult[] =
+                    activeYearOrder === 'none'
+                      ? sortBatchForNoOrder(payload.results as SearchResult[])
+                      : (payload.results as SearchResult[]);
+                  pendingResultsRef.current.push(...incoming);
+                  if (!flushTimerRef.current) {
+                    flushTimerRef.current = window.setTimeout(() => {
+                      const toAppend = pendingResultsRef.current;
+                      pendingResultsRef.current = [];
+                      startTransition(() => {
+                        setSearchResults((prev) => prev.concat(toAppend));
+                      });
+                      flushTimerRef.current = null;
+                    }, 80);
+                  }
+                }
+                break;
+              }
+              case 'source_error':
+                setCompletedSources((prev) => prev + 1);
+                break;
+              case 'complete':
+                setCompletedSources(payload.completedSources || totalSources);
+                // 完成前确保将缓冲写入
+                if (pendingResultsRef.current.length > 0) {
+                  const toAppend = pendingResultsRef.current;
+                  pendingResultsRef.current = [];
+                  if (flushTimerRef.current) {
+                    clearTimeout(flushTimerRef.current);
                     flushTimerRef.current = null;
-                  }, 80);
+                  }
+                  startTransition(() => {
+                    setSearchResults((prev) => prev.concat(toAppend));
+                  });
                 }
-              }
-              break;
+                setIsLoading(false);
+                try { es.close(); } catch { }
+                if (eventSourceRef.current === es) {
+                  eventSourceRef.current = null;
+                }
+                break;
             }
-            case 'source_error':
-              setCompletedSources((prev) => prev + 1);
-              break;
-            case 'complete':
-              setCompletedSources(payload.completedSources || totalSources);
-              // 完成前确保将缓冲写入
-              if (pendingResultsRef.current.length > 0) {
-                let toAppend = pendingResultsRef.current;
-                pendingResultsRef.current = [];
-                if (flushTimerRef.current) {
-                  clearTimeout(flushTimerRef.current);
-                  flushTimerRef.current = null;
-                }
-                startTransition(() => {
-                  setSearchResults((prev) => prev.concat(toAppend));
-                });
-              }
-              setIsLoading(false);
-              try { es.close(); } catch { }
-              if (eventSourceRef.current === es) {
-                eventSourceRef.current = null;
-              }
-              break;
-          }
-        } catch { }
-      };
+          } catch { }
+        };
 
-      es.onerror = () => {
-        setIsLoading(false);
-        // 错误时也清空缓冲
-        if (pendingResultsRef.current.length > 0) {
-          let toAppend = pendingResultsRef.current;
-          pendingResultsRef.current = [];
-          if (flushTimerRef.current) {
-            clearTimeout(flushTimerRef.current);
-            flushTimerRef.current = null;
+        es.onerror = () => {
+          setIsLoading(false);
+          // 错误时也清空缓冲
+          if (pendingResultsRef.current.length > 0) {
+            const toAppend = pendingResultsRef.current;
+            pendingResultsRef.current = [];
+            if (flushTimerRef.current) {
+              clearTimeout(flushTimerRef.current);
+              flushTimerRef.current = null;
+            }
+            startTransition(() => {
+              setSearchResults((prev) => prev.concat(toAppend));
+            });
           }
-          startTransition(() => {
-            setSearchResults((prev) => prev.concat(toAppend));
+          try { es.close(); } catch { }
+          if (eventSourceRef.current === es) {
+            eventSourceRef.current = null;
+          }
+        };
+      } else {
+        // 传统搜索：使用普通接口
+        fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (currentQueryRef.current !== trimmed) return;
+
+            if (data.results && Array.isArray(data.results)) {
+              const activeYearOrder = (viewMode === 'agg' ? (filterAgg.yearOrder) : (filterAll.yearOrder));
+              const results: SearchResult[] =
+                activeYearOrder === 'none'
+                  ? sortBatchForNoOrder(data.results as SearchResult[])
+                  : (data.results as SearchResult[]);
+
+              setSearchResults(results);
+              setTotalSources(1);
+              setCompletedSources(1);
+            }
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setIsLoading(false);
           });
-        }
-        try { es.close(); } catch { }
-        if (eventSourceRef.current === es) {
-          eventSourceRef.current = null;
-        }
-      };
+      }
       setShowSuggestions(false);
 
       // 保存到搜索历史 (事件监听会自动更新界面)
@@ -599,12 +655,12 @@ function SearchPageClient() {
               <div className='mb-4'>
                 <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
                   搜索结果
-                  {searchResults.length > 0 && totalSources > 0 && (
+                  {searchResults.length > 0 && totalSources > 0 && useFluidSearch && (
                     <span className='ml-2 text-sm font-normal text-gray-500 dark:text-gray-400'>
                       {completedSources}/{totalSources}
                     </span>
                   )}
-                  {searchResults.length > 0 && isLoading && (
+                  {searchResults.length > 0 && isLoading && useFluidSearch && (
                     <span className='ml-2 inline-block align-middle'>
                       <span className='inline-block h-3 w-3 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin'></span>
                     </span>

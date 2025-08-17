@@ -42,6 +42,7 @@ export const UserMenu: React.FC = () => {
   const [defaultAggregateSearch, setDefaultAggregateSearch] = useState(true);
   const [doubanProxyUrl, setDoubanProxyUrl] = useState('');
   const [enableOptimization, setEnableOptimization] = useState(true);
+  const [fluidSearch, setFluidSearch] = useState(true);
   const [doubanDataSource, setDoubanDataSource] = useState('direct');
   const [doubanImageProxyType, setDoubanImageProxyType] = useState('direct');
   const [doubanImageProxyUrl, setDoubanImageProxyUrl] = useState('');
@@ -66,7 +67,7 @@ export const UserMenu: React.FC = () => {
   const doubanImageProxyTypeOptions = [
     { value: 'direct', label: '直连（浏览器直接请求豆瓣）' },
     { value: 'server', label: '服务器代理（由服务器代理请求豆瓣）' },
-    { value: 'img3', label: '豆瓣精品 CDN（阿里云）' },
+    { value: 'img3', label: '豆瓣官方精品 CDN（阿里云）' },
     {
       value: 'cmliussss-cdn-tencent',
       label: '豆瓣 CDN By CMLiussss（腾讯云）',
@@ -156,6 +157,15 @@ export const UserMenu: React.FC = () => {
         localStorage.getItem('enableOptimization');
       if (savedEnableOptimization !== null) {
         setEnableOptimization(JSON.parse(savedEnableOptimization));
+      }
+
+      const savedFluidSearch = localStorage.getItem('fluidSearch');
+      const defaultFluidSearch =
+        (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
+      if (savedFluidSearch !== null) {
+        setFluidSearch(JSON.parse(savedFluidSearch));
+      } else if (defaultFluidSearch !== undefined) {
+        setFluidSearch(defaultFluidSearch);
       }
     }
   }, []);
@@ -325,6 +335,13 @@ export const UserMenu: React.FC = () => {
     }
   };
 
+  const handleFluidSearchToggle = (value: boolean) => {
+    setFluidSearch(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fluidSearch', JSON.stringify(value));
+    }
+  };
+
   const handleDoubanDataSourceChange = (value: string) => {
     setDoubanDataSource(value);
     if (typeof window !== 'undefined') {
@@ -374,9 +391,12 @@ export const UserMenu: React.FC = () => {
       (window as any).RUNTIME_CONFIG?.DOUBAN_IMAGE_PROXY_TYPE || 'direct';
     const defaultDoubanImageProxyUrl =
       (window as any).RUNTIME_CONFIG?.DOUBAN_IMAGE_PROXY || '';
+    const defaultFluidSearch =
+      (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
 
     setDefaultAggregateSearch(true);
     setEnableOptimization(true);
+    setFluidSearch(defaultFluidSearch);
     setDoubanProxyUrl(defaultDoubanProxy);
     setDoubanDataSource(defaultDoubanProxyType);
     setDoubanImageProxyType(defaultDoubanImageProxyType);
@@ -385,6 +405,7 @@ export const UserMenu: React.FC = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('defaultAggregateSearch', JSON.stringify(true));
       localStorage.setItem('enableOptimization', JSON.stringify(true));
+      localStorage.setItem('fluidSearch', JSON.stringify(defaultFluidSearch));
       localStorage.setItem('doubanProxyUrl', defaultDoubanProxy);
       localStorage.setItem('doubanDataSource', defaultDoubanProxyType);
       localStorage.setItem('doubanImageProxyType', defaultDoubanImageProxyType);
@@ -807,7 +828,7 @@ export const UserMenu: React.FC = () => {
           <div className='flex items-center justify-between'>
             <div>
               <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                启用优选和测速
+                优选和测速
               </h4>
               <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
                 如出现播放器劫持问题可关闭
@@ -820,6 +841,30 @@ export const UserMenu: React.FC = () => {
                   className='sr-only peer'
                   checked={enableOptimization}
                   onChange={(e) => handleOptimizationToggle(e.target.checked)}
+                />
+                <div className='w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
+                <div className='absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-5'></div>
+              </div>
+            </label>
+          </div>
+
+          {/* 流式搜索 */}
+          <div className='flex items-center justify-between'>
+            <div>
+              <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                流式搜索输出
+              </h4>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                启用搜索结果实时流式输出，关闭后使用传统一次性搜索
+              </p>
+            </div>
+            <label className='flex items-center cursor-pointer'>
+              <div className='relative'>
+                <input
+                  type='checkbox'
+                  className='sr-only peer'
+                  checked={fluidSearch}
+                  onChange={(e) => handleFluidSearchToggle(e.target.checked)}
                 />
                 <div className='w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
                 <div className='absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-5'></div>

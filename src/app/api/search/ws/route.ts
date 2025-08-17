@@ -66,10 +66,10 @@ export async function GET(request: NextRequest) {
 
       // 记录已完成的源数量
       let completedSources = 0;
-      let allResults: any[] = [];
+      const allResults: any[] = [];
 
       // 为每个源创建搜索 Promise
-      const searchPromises = apiSites.map(async (site, index) => {
+      const searchPromises = apiSites.map(async (site) => {
         try {
           // 添加超时控制
           const searchPromise = Promise.race([

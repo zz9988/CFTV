@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, ArrowUpDown } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpDown,ArrowUpNarrowWide } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

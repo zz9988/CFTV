@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom';
 
 import { changelog, ChangelogEntry } from '@/lib/changelog';
 import { CURRENT_VERSION } from '@/lib/version';
-import { compareVersions,UpdateStatus } from '@/lib/version_check';
+import { compareVersions, UpdateStatus } from '@/lib/version_check';
 
 interface VersionPanelProps {
   isOpen: boolean;
@@ -268,10 +268,35 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
       <div
         className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000]'
         onClick={onClose}
+        onTouchStart={(e) => {
+          // 阻止触摸事件冒泡，防止背景滚动
+          e.preventDefault();
+        }}
+        onTouchMove={(e) => {
+          // 阻止触摸移动，防止背景滚动
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onTouchEnd={(e) => {
+          // 阻止触摸结束事件，防止背景滚动
+          e.preventDefault();
+        }}
+        style={{
+          touchAction: 'none', // 禁用所有触摸操作
+        }}
       />
 
       {/* 版本面板 */}
-      <div className='fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-xl shadow-xl z-[1001] overflow-hidden'>
+      <div
+        className='fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-xl shadow-xl z-[1001] overflow-hidden'
+        onTouchMove={(e) => {
+          // 允许版本面板内部滚动，阻止事件冒泡到外层
+          e.stopPropagation();
+        }}
+        style={{
+          touchAction: 'auto', // 允许面板内的正常触摸操作
+        }}
+      >
         {/* 标题栏 */}
         <div className='flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 dark:border-gray-700'>
           <div className='flex items-center gap-2 sm:gap-3'>

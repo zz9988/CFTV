@@ -1706,25 +1706,25 @@ function PlayPageClient() {
               <div className='flex justify-center space-x-2 mb-4'>
                 <div
                   className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'searching' || loadingStage === 'fetching'
-                      ? 'bg-green-500 scale-125'
-                      : loadingStage === 'preferring' ||
-                        loadingStage === 'ready'
-                        ? 'bg-green-500'
-                        : 'bg-gray-300'
+                    ? 'bg-green-500 scale-125'
+                    : loadingStage === 'preferring' ||
+                      loadingStage === 'ready'
+                      ? 'bg-green-500'
+                      : 'bg-gray-300'
                     }`}
                 ></div>
                 <div
                   className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'preferring'
-                      ? 'bg-green-500 scale-125'
-                      : loadingStage === 'ready'
-                        ? 'bg-green-500'
-                        : 'bg-gray-300'
+                    ? 'bg-green-500 scale-125'
+                    : loadingStage === 'ready'
+                      ? 'bg-green-500'
+                      : 'bg-gray-300'
                     }`}
                 ></div>
                 <div
                   className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'ready'
-                      ? 'bg-green-500 scale-125'
-                      : 'bg-gray-300'
+                    ? 'bg-green-500 scale-125'
+                    : 'bg-gray-300'
                     }`}
                 ></div>
               </div>
@@ -1835,7 +1835,7 @@ function PlayPageClient() {
             {videoTitle || '影片标题'}
             {totalEpisodes > 1 && (
               <span className='text-gray-500 dark:text-gray-400'>
-                {` > 第 ${currentEpisodeIndex + 1} 集`}
+                {` > ${detail?.episodes_titles?.[currentEpisodeIndex] || `第 ${currentEpisodeIndex + 1} 集`}`}
               </span>
             )}
           </h1>
@@ -1874,8 +1874,8 @@ function PlayPageClient() {
               {/* 精致的状态指示点 */}
               <div
                 className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full transition-all duration-200 ${isEpisodeSelectorCollapsed
-                    ? 'bg-orange-400 animate-pulse'
-                    : 'bg-green-400'
+                  ? 'bg-orange-400 animate-pulse'
+                  : 'bg-green-400'
                   }`}
               ></div>
             </button>
@@ -1883,8 +1883,8 @@ function PlayPageClient() {
 
           <div
             className={`grid gap-4 lg:h-[500px] xl:h-[650px] 2xl:h-[750px] transition-all duration-300 ease-in-out ${isEpisodeSelectorCollapsed
-                ? 'grid-cols-1'
-                : 'grid-cols-1 md:grid-cols-4'
+              ? 'grid-cols-1'
+              : 'grid-cols-1 md:grid-cols-4'
               }`}
           >
             {/* 播放器 */}
@@ -1941,8 +1941,8 @@ function PlayPageClient() {
             {/* 选集和换源 - 在移动端始终显示，在 lg 及以上可折叠 */}
             <div
               className={`h-[300px] lg:h-full md:overflow-hidden transition-all duration-300 ease-in-out ${isEpisodeSelectorCollapsed
-                  ? 'md:col-span-1 lg:hidden lg:opacity-0 lg:scale-95'
-                  : 'md:col-span-1 lg:opacity-100 lg:scale-100'
+                ? 'md:col-span-1 lg:hidden lg:opacity-0 lg:scale-95'
+                : 'md:col-span-1 lg:opacity-100 lg:scale-100'
                 }`}
             >
               <EpisodeSelector

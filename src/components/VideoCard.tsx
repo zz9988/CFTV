@@ -3,7 +3,15 @@
 import { Heart, Link, PlayCircleIcon, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 
 import {
   deleteFavorite,
@@ -13,12 +21,11 @@ import {
   saveFavorite,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
-import { SearchResult } from '@/lib/types';
 import { processImageUrl } from '@/lib/utils';
 
 import { ImagePlaceholder } from '@/components/ImagePlaceholder';
 
-interface VideoCardProps {
+export interface VideoCardProps {
   id?: string;
   source?: string;
   title?: string;
@@ -26,6 +33,7 @@ interface VideoCardProps {
   poster?: string;
   episodes?: number;
   source_name?: string;
+  source_names?: string[];
   progress?: number;
   year?: string;
   from: 'playrecord' | 'favorite' | 'search' | 'douban';
@@ -33,81 +41,83 @@ interface VideoCardProps {
   douban_id?: number;
   onDelete?: () => void;
   rate?: string;
-  items?: SearchResult[];
   type?: string;
   isBangumi?: boolean;
+  isAggregate?: boolean;
 }
 
-function VideoCard({
-  id,
-  title = '',
-  query = '',
-  poster = '',
-  episodes,
-  source,
-  source_name,
-  progress = 0,
-  year,
-  from,
-  currentEpisode,
-  douban_id,
-  onDelete,
-  rate,
-  items,
-  type = '',
-  isBangumi = false,
-}: VideoCardProps) {
+export type VideoCardHandle = {
+  setDoubanId: (id?: number) => void;
+  setEpisodes: (episodes?: number) => void;
+  setSourceNames: (names?: string[]) => void;
+};
+
+const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard(
+  {
+    id,
+    title = '',
+    query = '',
+    poster = '',
+    episodes,
+    source,
+    source_name,
+    source_names,
+    progress = 0,
+    year,
+    from,
+    currentEpisode,
+    douban_id,
+    onDelete,
+    rate,
+    type = '',
+    isBangumi = false,
+    isAggregate = false,
+  }: VideoCardProps,
+  ref
+) {
   const router = useRouter();
   const [favorited, setFavorited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isAggregate = from === 'search' && !!items?.length;
+  // 可外部修改的可控字段
+  const [dynamicDoubanId, setDynamicDoubanId] = useState<number | undefined>(
+    douban_id
+  );
+  const [dynamicEpisodes, setDynamicEpisodes] = useState<number | undefined>(
+    episodes
+  );
+  const [dynamicSourceNames, setDynamicSourceNames] = useState<string[] | undefined>(
+    source_names
+  );
 
-  const aggregateData = useMemo(() => {
-    if (!isAggregate || !items) return null;
-    const countMap = new Map<number, number>();
-    const episodeCountMap = new Map<number, number>();
-    items.forEach((item) => {
-      if (item.douban_id && item.douban_id !== 0) {
-        countMap.set(item.douban_id, (countMap.get(item.douban_id) || 0) + 1);
-      }
-      const len = item.episodes?.length || 0;
-      if (len > 0) {
-        episodeCountMap.set(len, (episodeCountMap.get(len) || 0) + 1);
-      }
-    });
+  useEffect(() => {
+    setDynamicDoubanId(douban_id);
+  }, [douban_id]);
 
-    const getMostFrequent = (map: Map<number, number>) => {
-      let maxCount = 0;
-      let result: number | undefined;
-      map.forEach((cnt, key) => {
-        if (cnt > maxCount) {
-          maxCount = cnt;
-          result = key;
-        }
-      });
-      return result;
-    };
+  useEffect(() => {
+    setDynamicEpisodes(episodes);
+  }, [episodes]);
 
-    return {
-      first: items[0],
-      mostFrequentDoubanId: getMostFrequent(countMap),
-      mostFrequentEpisodes: getMostFrequent(episodeCountMap) || 0,
-    };
-  }, [isAggregate, items]);
+  useEffect(() => {
+    setDynamicSourceNames(source_names);
+  }, [source_names]);
 
-  const actualTitle = aggregateData?.first.title ?? title;
-  const actualPoster = aggregateData?.first.poster ?? poster;
-  const actualSource = aggregateData?.first.source ?? source;
-  const actualId = aggregateData?.first.id ?? id;
-  const actualDoubanId = aggregateData?.mostFrequentDoubanId ?? douban_id;
-  const actualEpisodes = aggregateData?.mostFrequentEpisodes ?? episodes;
-  const actualYear = aggregateData?.first.year ?? year;
+  useImperativeHandle(ref, () => ({
+    setDoubanId: (id?: number) => setDynamicDoubanId(id),
+    setEpisodes: (eps?: number) => setDynamicEpisodes(eps),
+    setSourceNames: (names?: string[]) => setDynamicSourceNames(names),
+  }));
+
+  const actualTitle = title;
+  const actualPoster = poster;
+  const actualSource = source;
+  const actualId = id;
+  const actualDoubanId = dynamicDoubanId;
+  const actualEpisodes = dynamicEpisodes;
+  const actualYear = year;
   const actualQuery = query || '';
   const actualSearchType = isAggregate
-    ? aggregateData?.first.episodes?.length === 1
-      ? 'movie'
-      : 'tv'
+    ? (actualEpisodes && actualEpisodes === 1 ? 'movie' : 'tv')
     : type;
 
   // 获取收藏状态（搜索结果页面不检查）
@@ -194,10 +204,10 @@ function VideoCard({
   );
 
   const handleClick = useCallback(() => {
-    if (from === 'douban') {
+    if (from === 'douban' || (isAggregate && !actualSource && !actualId)) {
       router.push(
         `/play?title=${encodeURIComponent(actualTitle.trim())}${actualYear ? `&year=${actualYear}` : ''
-        }${actualSearchType ? `&stype=${actualSearchType}` : ''}`
+        }${actualSearchType ? `&stype=${actualSearchType}` : ''}${isAggregate ? '&prefer=true' : ''}${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''}`
       );
     } else if (actualSource && actualId) {
       router.push(
@@ -378,8 +388,8 @@ function VideoCard({
         )}
 
         {/* 聚合播放源指示器 */}
-        {isAggregate && items && items.length > 0 && (() => {
-          const uniqueSources = Array.from(new Set(items.map(item => item.source_name)));
+        {isAggregate && dynamicSourceNames && dynamicSourceNames.length > 0 && (() => {
+          const uniqueSources = Array.from(new Set(dynamicSourceNames));
           const sourceCount = uniqueSources.length;
 
           return (
@@ -479,39 +489,6 @@ function VideoCard({
   );
 }
 
-// 自定义 props 比较，避免不必要的重渲染，减少卡片闪烁
-function arePropsEqual(prev: VideoCardProps, next: VideoCardProps) {
-  // 基础字段对比
-  const basicEqual =
-    prev.id === next.id &&
-    prev.title === next.title &&
-    prev.query === next.query &&
-    prev.poster === next.poster &&
-    prev.episodes === next.episodes &&
-    prev.source === next.source &&
-    prev.source_name === next.source_name &&
-    prev.year === next.year &&
-    prev.from === next.from &&
-    prev.type === next.type &&
-    prev.douban_id === next.douban_id;
+);
 
-  if (!basicEqual) return false;
-
-  // 聚合 items 仅对比长度与首个元素的关键标识，避免每次新数组导致重渲染
-  const prevLen = prev.items?.length || 0;
-  const nextLen = next.items?.length || 0;
-  if (prevLen !== nextLen) return false;
-  if (prevLen === 0) return true;
-
-  const prevFirst = prev.items![0];
-  const nextFirst = next.items![0];
-  return (
-    prevFirst.id === nextFirst.id &&
-    prevFirst.source === nextFirst.source &&
-    prevFirst.title === nextFirst.title &&
-    prevFirst.poster === nextFirst.poster &&
-    prevFirst.year === nextFirst.year
-  );
-}
-
-export default memo(VideoCard, arePropsEqual);
+export default memo(VideoCard);

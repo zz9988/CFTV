@@ -3,7 +3,7 @@
 
 import { ChevronUp, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 
 import {
   addSearchHistory,
@@ -18,7 +18,7 @@ import { SearchResult } from '@/lib/types';
 import PageLayout from '@/components/PageLayout';
 import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchResultFilter';
 import SearchSuggestions from '@/components/SearchSuggestions';
-import VideoCard from '@/components/VideoCard';
+import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 
 function SearchPageClient() {
   // 搜索历史
@@ -39,6 +39,50 @@ function SearchPageClient() {
   const [completedSources, setCompletedSources] = useState(0);
   const pendingResultsRef = useRef<SearchResult[]>([]);
   const flushTimerRef = useRef<number | null>(null);
+  // 聚合卡片 refs 与聚合统计缓存
+  const groupRefs = useRef<Map<string, React.RefObject<VideoCardHandle>>>(new Map());
+  const groupStatsRef = useRef<Map<string, { douban_id?: number; episodes?: number; source_names: string[] }>>(new Map());
+
+  const getGroupRef = (key: string) => {
+    let ref = groupRefs.current.get(key);
+    if (!ref) {
+      ref = React.createRef<VideoCardHandle>();
+      groupRefs.current.set(key, ref);
+    }
+    return ref;
+  };
+
+  const computeGroupStats = (group: SearchResult[]) => {
+    const episodes = (() => {
+      const countMap = new Map<number, number>();
+      group.forEach((g) => {
+        const len = g.episodes?.length || 0;
+        if (len > 0) countMap.set(len, (countMap.get(len) || 0) + 1);
+      });
+      let max = 0;
+      let res = 0;
+      countMap.forEach((v, k) => {
+        if (v > max) { max = v; res = k; }
+      });
+      return res;
+    })();
+    const douban_id = (() => {
+      const idMap = new Map<number, number>();
+      group.forEach((g) => {
+        if (g.douban_id && g.douban_id !== 0) {
+          idMap.set(g.douban_id, (idMap.get(g.douban_id) || 0) + 1);
+        }
+      });
+      let max = 0;
+      let res: number | undefined = undefined;
+      idMap.forEach((v, k) => {
+        if (v > max) { max = v; res = k; }
+      });
+      return res;
+    })();
+    const source_names = Array.from(new Set(group.map((g) => g.source_name).filter(Boolean))) as string[];
+    return { episodes, douban_id, source_names };
+  };
   // 过滤器：非聚合与聚合
   const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
     source: 'all',
@@ -131,6 +175,35 @@ function SearchPageClient() {
     // 按出现顺序返回聚合结果
     return keyOrder.map(key => [key, map.get(key)!] as [string, SearchResult[]]);
   }, [searchResults]);
+
+  // 当聚合结果变化时，如果某个聚合已存在，则调用其卡片 ref 的 set 方法增量更新
+  useEffect(() => {
+    aggregatedResults.forEach(([mapKey, group]) => {
+      const stats = computeGroupStats(group);
+      const prev = groupStatsRef.current.get(mapKey);
+      if (!prev) {
+        // 第一次出现，记录初始值，不调用 ref（由初始 props 渲染）
+        groupStatsRef.current.set(mapKey, stats);
+        return;
+      }
+      // 对比变化并调用对应的 set 方法
+      const ref = groupRefs.current.get(mapKey);
+      if (ref && ref.current) {
+        if (prev.douban_id !== stats.douban_id) {
+          ref.current.setDoubanId(stats.douban_id);
+        }
+        if (prev.episodes !== stats.episodes) {
+          ref.current.setEpisodes(stats.episodes);
+        }
+        const prevNames = (prev.source_names || []).join('|');
+        const nextNames = (stats.source_names || []).join('|');
+        if (prevNames !== nextNames) {
+          ref.current.setSourceNames(stats.source_names);
+        }
+        groupStatsRef.current.set(mapKey, stats);
+      }
+    });
+  }, [aggregatedResults]);
 
   // 构建筛选选项
   const filterOptions = useMemo(() => {
@@ -604,16 +677,35 @@ function SearchPageClient() {
                 >
                   {viewMode === 'agg'
                     ? filteredAggResults.map(([mapKey, group]) => {
+                      const title = group[0]?.title || '';
+                      const poster = group[0]?.poster || '';
+                      const year = group[0]?.year || 'unknown';
+                      const { episodes, douban_id, source_names } = computeGroupStats(group);
+                      const type = episodes === 1 ? 'movie' : 'tv';
+
+                      // 如果该聚合第一次出现，写入初始统计
+                      if (!groupStatsRef.current.has(mapKey)) {
+                        groupStatsRef.current.set(mapKey, { episodes, douban_id, source_names });
+                      }
+
                       return (
                         <div key={`agg-${mapKey}`} className='w-full'>
                           <VideoCard
+                            ref={getGroupRef(mapKey)}
                             from='search'
-                            items={group}
+                            isAggregate={true}
+                            title={title}
+                            poster={poster}
+                            year={year}
+                            episodes={episodes}
+                            douban_id={douban_id}
+                            source_names={source_names}
                             query={
-                              searchQuery.trim() !== group[0].title
+                              searchQuery.trim() !== title
                                 ? searchQuery.trim()
                                 : ''
                             }
+                            type={type}
                           />
                         </div>
                       );

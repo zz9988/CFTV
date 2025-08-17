@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "2.7.1",
+    date: "2025-08-17",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复 iOS 下版本面板可穿透滚动背景的问题"
+    ]
+  },
+  {
     version: "2.7.0",
     date: "2025-08-17",
     added: [

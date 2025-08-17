@@ -47,7 +47,6 @@ export interface VideoCardProps {
 }
 
 export type VideoCardHandle = {
-  setDoubanId: (id?: number) => void;
   setEpisodes: (episodes?: number) => void;
   setSourceNames: (names?: string[]) => void;
 };
@@ -80,19 +79,12 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   const [isLoading, setIsLoading] = useState(false);
 
   // 可外部修改的可控字段
-  const [dynamicDoubanId, setDynamicDoubanId] = useState<number | undefined>(
-    douban_id
-  );
   const [dynamicEpisodes, setDynamicEpisodes] = useState<number | undefined>(
     episodes
   );
   const [dynamicSourceNames, setDynamicSourceNames] = useState<string[] | undefined>(
     source_names
   );
-
-  useEffect(() => {
-    setDynamicDoubanId(douban_id);
-  }, [douban_id]);
 
   useEffect(() => {
     setDynamicEpisodes(episodes);
@@ -103,7 +95,6 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   }, [source_names]);
 
   useImperativeHandle(ref, () => ({
-    setDoubanId: (id?: number) => setDynamicDoubanId(id),
     setEpisodes: (eps?: number) => setDynamicEpisodes(eps),
     setSourceNames: (names?: string[]) => setDynamicSourceNames(names),
   }));
@@ -112,7 +103,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   const actualPoster = poster;
   const actualSource = source;
   const actualId = id;
-  const actualDoubanId = dynamicDoubanId;
+  const actualDoubanId = douban_id;
   const actualEpisodes = dynamicEpisodes;
   const actualYear = year;
   const actualQuery = query || '';
@@ -274,7 +265,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
       },
     };
     return configs[from] || configs.search;
-  }, [from, isAggregate, actualDoubanId, rate]);
+  }, [from, isAggregate, douban_id, rate]);
 
   return (
     <div
@@ -395,7 +386,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           return (
             <div className='absolute bottom-2 right-2 opacity-0 transition-all duration-300 ease-in-out delay-75 group-hover:opacity-100'>
               <div className='relative group/sources'>
-                <div className='bg-gray-700 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:bg-gray-600 hover:scale-[1.1] transition-all duration-300 ease-out cursor-pointer'>
+                <div className='bg-gray-700 text-white text-xs font-bold w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center shadow-md hover:bg-gray-600 hover:scale-[1.1] transition-all duration-300 ease-out cursor-pointer'>
                   {sourceCount}
                 </div>
 
@@ -420,14 +411,14 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                   const remainingCount = sortedSources.length - maxDisplayCount;
 
                   return (
-                    <div className='absolute bottom-full right-0 mb-2 opacity-0 invisible group-hover/sources:opacity-100 group-hover/sources:visible transition-all duration-200 ease-out delay-100 pointer-events-none z-50'>
-                      <div className='bg-gray-800/90 backdrop-blur-sm text-white text-xs rounded-lg shadow-xl border border-white/10 p-2 min-w-[120px] max-w-[200px]'>
+                    <div className='absolute bottom-full mb-2 opacity-0 invisible group-hover/sources:opacity-100 group-hover/sources:visible transition-all duration-200 ease-out delay-100 pointer-events-none z-50 right-0 sm:right-0 -translate-x-0 sm:translate-x-0'>
+                      <div className='bg-gray-800/90 backdrop-blur-sm text-white text-xs sm:text-xs rounded-lg shadow-xl border border-white/10 p-1.5 sm:p-2 min-w-[100px] sm:min-w-[120px] max-w-[140px] sm:max-w-[200px] overflow-hidden'>
                         {/* 单列布局 */}
-                        <div className='space-y-1'>
+                        <div className='space-y-0.5 sm:space-y-1'>
                           {displaySources.map((sourceName, index) => (
-                            <div key={index} className='flex items-center gap-1.5'>
-                              <div className='w-1 h-1 bg-blue-400 rounded-full flex-shrink-0'></div>
-                              <span className='truncate text-xs' title={sourceName}>
+                            <div key={index} className='flex items-center gap-1 sm:gap-1.5'>
+                              <div className='w-0.5 h-0.5 sm:w-1 sm:h-1 bg-blue-400 rounded-full flex-shrink-0'></div>
+                              <span className='truncate text-[10px] sm:text-xs leading-tight' title={sourceName}>
                                 {sourceName}
                               </span>
                             </div>
@@ -436,15 +427,15 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
 
                         {/* 显示更多提示 */}
                         {hasMore && (
-                          <div className='mt-2 pt-1.5 border-t border-gray-700/50'>
+                          <div className='mt-1 sm:mt-2 pt-1 sm:pt-1.5 border-t border-gray-700/50'>
                             <div className='flex items-center justify-center text-gray-400'>
-                              <span className='text-xs font-medium'>+{remainingCount} 播放源</span>
+                              <span className='text-[10px] sm:text-xs font-medium'>+{remainingCount} 播放源</span>
                             </div>
                           </div>
                         )}
 
                         {/* 小箭头 */}
-                        <div className='absolute top-full right-3 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-800/90'></div>
+                        <div className='absolute top-full right-2 sm:right-3 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] sm:border-l-[6px] sm:border-r-[6px] sm:border-t-[6px] border-transparent border-t-gray-800/90'></div>
                       </div>
                     </div>
                   );

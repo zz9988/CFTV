@@ -66,22 +66,8 @@ function SearchPageClient() {
       });
       return res;
     })();
-    const douban_id = (() => {
-      const idMap = new Map<number, number>();
-      group.forEach((g) => {
-        if (g.douban_id && g.douban_id !== 0) {
-          idMap.set(g.douban_id, (idMap.get(g.douban_id) || 0) + 1);
-        }
-      });
-      let max = 0;
-      let res: number | undefined = undefined;
-      idMap.forEach((v, k) => {
-        if (v > max) { max = v; res = k; }
-      });
-      return res;
-    })();
     const source_names = Array.from(new Set(group.map((g) => g.source_name).filter(Boolean))) as string[];
-    return { episodes, douban_id, source_names };
+    return { episodes, source_names };
   };
   // 过滤器：非聚合与聚合
   const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
@@ -189,9 +175,6 @@ function SearchPageClient() {
       // 对比变化并调用对应的 set 方法
       const ref = groupRefs.current.get(mapKey);
       if (ref && ref.current) {
-        if (prev.douban_id !== stats.douban_id) {
-          ref.current.setDoubanId(stats.douban_id);
-        }
         if (prev.episodes !== stats.episodes) {
           ref.current.setEpisodes(stats.episodes);
         }
@@ -680,12 +663,12 @@ function SearchPageClient() {
                       const title = group[0]?.title || '';
                       const poster = group[0]?.poster || '';
                       const year = group[0]?.year || 'unknown';
-                      const { episodes, douban_id, source_names } = computeGroupStats(group);
+                      const { episodes, source_names } = computeGroupStats(group);
                       const type = episodes === 1 ? 'movie' : 'tv';
 
                       // 如果该聚合第一次出现，写入初始统计
                       if (!groupStatsRef.current.has(mapKey)) {
-                        groupStatsRef.current.set(mapKey, { episodes, douban_id, source_names });
+                        groupStatsRef.current.set(mapKey, { episodes, source_names });
                       }
 
                       return (
@@ -698,7 +681,6 @@ function SearchPageClient() {
                             poster={poster}
                             year={year}
                             episodes={episodes}
-                            douban_id={douban_id}
                             source_names={source_names}
                             query={
                               searchQuery.trim() !== title

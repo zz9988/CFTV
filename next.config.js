@@ -9,6 +9,10 @@ const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
 
+  experimental: {
+    instrumentationHook: true,
+  },
+
   // Uncoment to add domain whitelist
   images: {
     unoptimized: true,

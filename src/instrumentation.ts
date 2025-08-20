@@ -482,8 +482,8 @@ function checkDatabaseConfig(): void {
         console.error('🚨 数据库配置检查失败，服务器即将退出');
         process.exit(0);
       }
-      if (!redisUrl.startsWith('redis://')) {
-        console.error('❌ REDIS_URL 必须以 redis:// 开头');
+      if (!redisUrl.startsWith('redis://') && !redisUrl.startsWith('rediss://')) {
+        console.error('❌ REDIS_URL 必须以 redis:// 或 rediss:// 开头');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
         process.exit(0);
       }

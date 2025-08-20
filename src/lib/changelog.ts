@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.0.1",
+    date: "2025-08-20",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复授权初始化错误"
+    ]
+  },
+  {
     version: "3.0.0",
     date: "2025-08-20",
     added: [

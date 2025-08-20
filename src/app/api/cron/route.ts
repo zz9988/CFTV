@@ -276,8 +276,26 @@ async function initializeDeviceAuth(): Promise<void> {
       return;
     }
 
-    // 生成机器码
-    const combinedString = authToken + username + password;
+    // 生成机器码（包含存储URL信息）
+    const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+    let storageUrl = '';
+
+    // 根据存储类型获取对应的URL
+    switch (storageType) {
+      case 'kvrocks':
+        storageUrl = process.env.KVROCKS_URL || '';
+        break;
+      case 'upstash':
+        storageUrl = process.env.UPSTASH_URL || '';
+        break;
+      case 'redis':
+        storageUrl = process.env.REDIS_URL || '';
+        break;
+      default:
+        storageUrl = 'localstorage';
+    }
+
+    const combinedString = authToken + username + password + storageUrl;
     const encoder = new TextEncoder();
     const data = encoder.encode(combinedString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);

@@ -381,8 +381,26 @@ async function checkAuthentication(): Promise<void> {
   }
 
   try {
-    // 第一步：生成机器码
-    const combinedString = authToken + username + password;
+    // 第一步：生成机器码（包含存储URL信息）
+    const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+    let storageUrl = '';
+
+    // 根据存储类型获取对应的URL
+    switch (storageType) {
+      case 'kvrocks':
+        storageUrl = process.env.KVROCKS_URL || '';
+        break;
+      case 'upstash':
+        storageUrl = process.env.UPSTASH_URL || '';
+        break;
+      case 'redis':
+        storageUrl = process.env.REDIS_URL || '';
+        break;
+      default:
+        storageUrl = 'localstorage';
+    }
+
+    const combinedString = authToken + username + password + storageUrl;
     const encoder = new TextEncoder();
     const data = encoder.encode(combinedString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -502,15 +520,15 @@ async function runCriticalStartupChecks(): Promise<void> {
   checkEnvironment();
   console.log('✅ 环境变量检查通过');
 
-  // 2. 认证检查
-  console.log('🔐 检查认证信息...');
-  await checkAuthentication();
-  console.log('✅ 认证检查通过');
-
-  // 3. 数据库配置检查
+  // 2. 数据库配置检查
   console.log('🗄️ 检查数据库配置...');
   checkDatabaseConfig();
   console.log('✅ 数据库配置检查通过');
+
+  // 3. 认证检查
+  console.log('🔐 检查认证信息...');
+  await checkAuthentication();
+  console.log('✅ 认证检查通过');
 
   console.log('🎉 所有关键检查通过，服务器正常启动');
 }

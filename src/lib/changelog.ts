@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.0.2",
+    date: "2025-08-20",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+    "优化机器码生成逻辑"
+    ],
+    fixed: [
+    "修复 redis url 不支持 rediss 协议的问题"
+    ]
+  },
+  {
     version: "3.0.1",
     date: "2025-08-20",
     added: [

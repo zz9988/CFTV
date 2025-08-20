@@ -521,7 +521,7 @@ async function runCriticalStartupChecks(): Promise<void> {
  */
 export async function register() {
   // 只在服务器端运行
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' && typeof process !== 'undefined' && process.on && typeof process.on === 'function') {
     console.log('🚀 MoonTV 启动检查开始...');
 
     // 注册进程退出事件处理

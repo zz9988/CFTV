@@ -17,6 +17,7 @@ const ACTIONS = [
   'cancelAdmin',
   'changePassword',
   'deleteUser',
+  'updateUserApis',
 ] as const;
 
 export async function POST(request: NextRequest) {
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     if (
       action !== 'changePassword' &&
       action !== 'deleteUser' &&
+      action !== 'updateUserApis' &&
       username === targetUsername
     ) {
       return NextResponse.json(
@@ -269,6 +271,38 @@ export async function POST(request: NextRequest) {
         );
         if (userIndex > -1) {
           adminConfig.UserConfig.Users.splice(userIndex, 1);
+        }
+
+        break;
+      }
+      case 'updateUserApis': {
+        if (!targetEntry) {
+          return NextResponse.json(
+            { error: '目标用户不存在' },
+            { status: 404 }
+          );
+        }
+
+        const { enabledApis } = body as { enabledApis?: string[] };
+
+        // 权限检查：站长可配置所有人的采集源，管理员可配置普通用户和自己的采集源
+        if (
+          isTargetAdmin &&
+          operatorRole !== 'owner' &&
+          username !== targetUsername
+        ) {
+          return NextResponse.json(
+            { error: '仅站长可配置其他管理员的采集源' },
+            { status: 401 }
+          );
+        }
+
+        // 更新用户的采集源权限
+        if (enabledApis && enabledApis.length > 0) {
+          targetEntry.enabledApis = enabledApis;
+        } else {
+          // 如果为空数组或未提供，则删除该字段，表示无限制
+          delete targetEntry.enabledApis;
         }
 
         break;

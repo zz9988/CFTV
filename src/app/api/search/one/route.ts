@@ -1,13 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { getCacheTime, getConfig } from '@/lib/config';
+import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
+import { getAuthInfoFromCookie } from '@/lib/auth';
 import { yellowWords } from '@/lib/yellow';
 
 export const runtime = 'nodejs';
 
 // OrionTV 兼容接口
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const authInfo = getAuthInfoFromCookie(request);
+  if (!authInfo || !authInfo.username) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
   const resourceId = searchParams.get('resourceId');
@@ -28,7 +34,7 @@ export async function GET(request: Request) {
   }
 
   const config = await getConfig();
-  const apiSites = config.SourceConfig.filter((site) => !site.disabled);
+  const apiSites = await getAvailableApiSites(authInfo.username);
 
   try {
     // 根据 resourceId 查找对应的 API 站点

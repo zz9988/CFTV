@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
-import { getConfig } from '@/lib/config';
+import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     // 从 cookie 获取用户信息
     const authInfo = getAuthInfoFromCookie(request);
-    if (!authInfo) {
+    if (!authInfo || !authInfo.username) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 生成建议
-    const suggestions = await generateSuggestions(query);
+    const suggestions = await generateSuggestions(query, authInfo.username);
 
     // 从配置中获取缓存时间，如果没有配置则使用默认值300秒（5分钟）
     const cacheTime = config.SiteConfig.SiteInterfaceCacheTime || 300;
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function generateSuggestions(query: string): Promise<
+async function generateSuggestions(query: string, username: string): Promise<
   Array<{
     text: string;
     type: 'exact' | 'related' | 'suggestion';
@@ -66,8 +66,7 @@ async function generateSuggestions(query: string): Promise<
 > {
   const queryLower = query.toLowerCase();
 
-  const config = await getConfig();
-  const apiSites = config.SourceConfig.filter((site: any) => !site.disabled);
+  const apiSites = await getAvailableApiSites(username);
   let realKeywords: string[] = [];
 
   if (apiSites.length > 0) {

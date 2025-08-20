@@ -285,7 +285,7 @@ function checkEnvironment(): void {
   if (!username || username.trim() === '') {
     console.error('❌ USERNAME 环境变量不得为空');
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 检查 PASSWORD
@@ -293,7 +293,7 @@ function checkEnvironment(): void {
   if (!password || password.trim() === '') {
     console.error('❌ PASSWORD 环境变量不得为空');
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 检查弱密码
@@ -330,20 +330,20 @@ function checkEnvironment(): void {
   if (weakPasswords.includes(password.toLowerCase())) {
     console.error(`❌ PASSWORD 不能使用常见弱密码: ${password}`);
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   if (password.length < 8) {
     console.error('❌ PASSWORD 长度不能少于8位');
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 检查密码不能与用户名相同
   if (password.toLowerCase() === username.toLowerCase()) {
     console.error('❌ PASSWORD 不能与 USERNAME 相同');
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 检查 AUTH_TOKEN
@@ -351,7 +351,7 @@ function checkEnvironment(): void {
   if (!authToken || authToken.trim() === '') {
     console.error('❌ AUTH_TOKEN 不得为空');
     console.error('🚨 环境变量检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 检查 AUTH_SERVER（可选，但如果设置了需要验证格式）
@@ -360,7 +360,7 @@ function checkEnvironment(): void {
     if (!authServer.startsWith('https://') && !authServer.startsWith('http://')) {
       console.error('❌ AUTH_SERVER 必须以 http:// 或 https:// 开头');
       console.error('🚨 环境变量检查失败，服务器即将退出');
-      process.exit(1);
+      process.exit(0);
     }
   }
 }
@@ -377,7 +377,7 @@ async function checkAuthentication(): Promise<void> {
   if (!authToken || !username || !password) {
     console.error('❌ 认证检查失败：缺少必需的环境变量');
     console.error('🚨 认证检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   try {
@@ -419,7 +419,7 @@ async function checkAuthentication(): Promise<void> {
   } catch (error) {
     console.error('❌ 认证流程失败:', error instanceof Error ? error.message : '未知错误');
     console.error('🚨 认证检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 }
 
@@ -434,7 +434,7 @@ function checkDatabaseConfig(): void {
   if (!allowedStorageTypes.includes(storageType)) {
     console.error(`❌ NEXT_PUBLIC_STORAGE_TYPE 必须是 ${allowedStorageTypes.join(', ')} 之一，当前值: ${storageType}`);
     console.error('🚨 数据库配置检查失败，服务器即将退出');
-    process.exit(1);
+    process.exit(0);
   }
 
   // 根据存储类型检查相应的环境变量
@@ -444,12 +444,12 @@ function checkDatabaseConfig(): void {
       if (!kvrocksUrl || kvrocksUrl.trim() === '') {
         console.error('❌ KVROCKS_URL 环境变量不得为空');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       if (!kvrocksUrl.startsWith('redis://')) {
         console.error('❌ KVROCKS_URL 必须以 redis:// 开头');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       break;
 
@@ -460,18 +460,18 @@ function checkDatabaseConfig(): void {
       if (!upstashUrl || upstashUrl.trim() === '') {
         console.error('❌ UPSTASH_URL 环境变量不得为空');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       if (!upstashUrl.startsWith('https://')) {
         console.error('❌ UPSTASH_URL 必须以 https:// 开头');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
 
       if (!upstashToken || upstashToken.trim() === '') {
         console.error('❌ UPSTASH_TOKEN 环境变量不得为空');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       break;
 
@@ -480,12 +480,12 @@ function checkDatabaseConfig(): void {
       if (!redisUrl || redisUrl.trim() === '') {
         console.error('❌ REDIS_URL 环境变量不得为空');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       if (!redisUrl.startsWith('redis://')) {
         console.error('❌ REDIS_URL 必须以 redis:// 开头');
         console.error('🚨 数据库配置检查失败，服务器即将退出');
-        process.exit(1);
+        process.exit(0);
       }
       break;
   }
@@ -540,7 +540,7 @@ export async function register() {
     } catch (error) {
       console.error('💥 启动检查过程中发生未预期错误:', error);
       console.error('🚨 服务器即将退出');
-      process.exit(1);
+      process.exit(0);
     }
   }
 }

@@ -22,6 +22,7 @@ export interface AdminConfig {
       username: string;
       role: 'user' | 'admin' | 'owner';
       banned?: boolean;
+      enabledApis?: string[]; // 为空则允许全部
     }[];
   };
   SourceConfig: {

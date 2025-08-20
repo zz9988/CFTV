@@ -275,6 +275,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     return true;
   });
   // 过滤站长
+  const originOwnerCfg = adminConfig.UserConfig.Users.find((u) => u.username === ownerUser);
   adminConfig.UserConfig.Users = adminConfig.UserConfig.Users.filter((user) => user.username !== ownerUser);
   // 其他用户不得拥有 owner 权限
   adminConfig.UserConfig.Users.forEach((user) => {
@@ -287,6 +288,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     username: ownerUser!,
     role: 'owner',
     banned: false,
+    enabledApis: originOwnerCfg?.enabledApis || undefined,
   });
 
   // 采集源去重
@@ -333,9 +335,15 @@ export async function getCacheTime(): Promise<number> {
   return config.SiteConfig.SiteInterfaceCacheTime || 7200;
 }
 
-export async function getAvailableApiSites(): Promise<ApiSite[]> {
+export async function getAvailableApiSites(user?: string): Promise<ApiSite[]> {
   const config = await getConfig();
-  return config.SourceConfig.filter((s) => !s.disabled).map((s) => ({
+  const allApiSites = config.SourceConfig.filter((s) => !s.disabled);
+  const userApiSites = user ? config.UserConfig.Users.find((u) => u.username === user)?.enabledApis || [] : [];
+  if (userApiSites.length === 0) {
+    return allApiSites;
+  }
+  const userApiSitesSet = new Set(userApiSites);
+  return allApiSites.filter((s) => userApiSitesSet.has(s.key)).map((s) => ({
     key: s.key,
     name: s.name,
     api: s.api,

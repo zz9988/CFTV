@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-import { getConfig } from '@/lib/config';
+import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 import { yellowWords } from '@/lib/yellow';
+import { getAuthInfoFromCookie } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const authInfo = getAuthInfoFromCookie(request);
+  if (!authInfo || !authInfo.username) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
@@ -25,7 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   const config = await getConfig();
-  const apiSites = config.SourceConfig.filter((site) => !site.disabled);
+  const apiSites = await getAvailableApiSites(authInfo.username);
 
   // 共享状态
   let streamClosed = false;

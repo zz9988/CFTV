@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { GripVertical } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Swal from 'sweetalert2';
 
 import { AdminConfig, AdminConfigResult } from '@/lib/admin.types';
@@ -145,6 +146,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     username: '',
     password: '',
   });
+  const [showConfigureApisModal, setShowConfigureApisModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    username: string;
+    role: 'user' | 'admin' | 'owner';
+    enabledApis?: string[];
+  } | null>(null);
+  const [selectedApis, setSelectedApis] = useState<string[]>([]);
 
   // 当前登录用户名
   const currentUsername = getAuthInfoFromBrowserCookie()?.username || null;
@@ -207,6 +215,56 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     if (!isConfirmed) return;
 
     await handleUserAction('deleteUser', username);
+  };
+
+  const handleConfigureUserApis = (user: {
+    username: string;
+    role: 'user' | 'admin' | 'owner';
+    enabledApis?: string[];
+  }) => {
+    setSelectedUser(user);
+    setSelectedApis(user.enabledApis || []);
+    setShowConfigureApisModal(true);
+  };
+
+  // 提取URL域名的辅助函数
+  const extractDomain = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname;
+    } catch {
+      // 如果URL格式不正确，返回原字符串
+      return url;
+    }
+  };
+
+  const handleSaveUserApis = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const res = await fetch('/api/admin/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUsername: selectedUser.username,
+          action: 'updateUserApis',
+          enabledApis: selectedApis,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `操作失败: ${res.status}`);
+      }
+
+      // 成功后刷新配置
+      await refreshConfig();
+      setShowConfigureApisModal(false);
+      setSelectedUser(null);
+      setSelectedApis([]);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '操作失败');
+    }
   };
 
   // 通用请求函数
@@ -396,6 +454,12 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 </th>
                 <th
                   scope='col'
+                  className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'
+                >
+                  采集源权限
+                </th>
+                <th
+                  scope='col'
                   className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'
                 >
                   操作
@@ -470,6 +534,27 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                             {!user.banned ? '正常' : '已封禁'}
                           </span>
                         </td>
+                        <td className='px-6 py-4 whitespace-nowrap'>
+                          <div className='flex items-center space-x-2'>
+                            <span className='text-sm text-gray-900 dark:text-gray-100'>
+                              {user.enabledApis && user.enabledApis.length > 0
+                                ? `${user.enabledApis.length} 个源`
+                                : '无限制'}
+                            </span>
+                            {/* 配置采集源权限按钮 */}
+                            {(role === 'owner' ||
+                              (role === 'admin' &&
+                                (user.role === 'user' ||
+                                  user.username === currentUsername))) && (
+                                <button
+                                  onClick={() => handleConfigureUserApis(user)}
+                                  className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
+                                >
+                                  配置
+                                </button>
+                              )}
+                          </div>
+                        </td>
                         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
                           {/* 修改密码按钮 */}
                           {canChangePassword && (
@@ -542,6 +627,131 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           </table>
         </div>
       </div>
+
+      {/* 配置用户采集源权限弹窗 */}
+      {showConfigureApisModal && selectedUser && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto'>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  配置用户采集源权限 - {selectedUser.username}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowConfigureApisModal(false);
+                    setSelectedUser(null);
+                    setSelectedApis([]);
+                  }}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-blue-600 dark:text-blue-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                    </svg>
+                    <span className='text-sm font-medium text-blue-800 dark:text-blue-300'>
+                      配置说明
+                    </span>
+                  </div>
+                  <p className='text-sm text-blue-700 dark:text-blue-400 mt-1'>
+                    提示：全不选为无限制，选中的采集源将限制用户只能访问这些源
+                  </p>
+                </div>
+              </div>
+
+              {/* 采集源选择 - 多列布局 */}
+              <div className='mb-6'>
+                <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-4'>
+                  选择可用的采集源：
+                </h4>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+                  {config?.SourceConfig?.map((source) => (
+                    <label key={source.key} className='flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors'>
+                      <input
+                        type='checkbox'
+                        checked={selectedApis.includes(source.key)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedApis([...selectedApis, source.key]);
+                          } else {
+                            setSelectedApis(selectedApis.filter(api => api !== source.key));
+                          }
+                        }}
+                        className='rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700'
+                      />
+                      <div className='flex-1 min-w-0'>
+                        <div className='text-sm font-medium text-gray-900 dark:text-gray-100 truncate'>
+                          {source.name}
+                        </div>
+                        {source.api && (
+                          <div className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                            {extractDomain(source.api)}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 快速操作按钮 */}
+              <div className='flex flex-wrap items-center justify-between mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg'>
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => setSelectedApis([])}
+                    className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                  >
+                    全不选（无限制）
+                  </button>
+                  <button
+                    onClick={() => {
+                      const allApis = config?.SourceConfig?.filter(source => !source.disabled).map(s => s.key) || [];
+                      setSelectedApis(allApis);
+                    }}
+                    className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                  >
+                    全选
+                  </button>
+                </div>
+                <div className='text-sm text-gray-600 dark:text-gray-400'>
+                  已选择：<span className='font-medium text-blue-600 dark:text-blue-400'>
+                    {selectedApis.length > 0 ? `${selectedApis.length} 个源` : '无限制'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => {
+                    setShowConfigureApisModal(false);
+                    setSelectedUser(null);
+                    setSelectedApis([]);
+                  }}
+                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSaveUserApis}
+                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                >
+                  确认配置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

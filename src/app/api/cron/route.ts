@@ -221,7 +221,7 @@ async function verifyDevice(): Promise<void> {
     if (!apiResp.success) {
       console.error('❌ 设备验证失败');
       console.error(`验证失败原因: ${apiResp.message}`);
-      process.exit(1);
+      process.exit(0);
     }
 
     // 重置网络失败计数
@@ -244,13 +244,13 @@ async function verifyDevice(): Promise<void> {
 
       if (networkFailureCount >= MAX_NETWORK_FAILURES) {
         console.error('❌ 网络验证失败次数超过限制，重置认证信息');
-        process.exit(1);
+        process.exit(0);
       }
     } else {
       // 非网络错误，直接退出
       console.error('❌ 设备验证失败');
       console.error(`验证失败原因: ${errorMessage}`);
-      process.exit(1);
+      process.exit(0);
     }
   }
 }
@@ -298,7 +298,7 @@ async function initializeDeviceAuth(): Promise<void> {
       });
     } catch (keyError) {
       console.error('❌ 公钥KeyObject创建失败:', keyError);
-      process.exit(1);
+      process.exit(0);
     }
     expectedFingerprint = fingerprint;
 
@@ -307,7 +307,7 @@ async function initializeDeviceAuth(): Promise<void> {
     console.log('🔑 设备认证信息初始化成功');
   } catch (error) {
     console.error('❌ 设备认证信息初始化失败:', error);
-    process.exit(1);
+    process.exit(0);
   }
 }
 

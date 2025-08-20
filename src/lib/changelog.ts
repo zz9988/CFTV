@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.0.0",
+    date: "2025-08-20",
+    added: [
+    "防盗卖加固",
+    "支持自定义用户可用视频源"
+    ],
+    changed: [
+    "右键视频卡片可弹出操作菜单"
+    ],
+    fixed: [
+    "过滤掉集数为 0 的搜索结果"
+    ]
+  },
+  {
     version: "2.7.1",
     date: "2025-08-17",
     added: [

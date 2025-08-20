@@ -27,16 +27,13 @@ export interface ServerInfo {
 const API_SECRET = 'moontv-is-the-best';
 
 // 验证服务器地址
-const AUTH_SERVER = process.env.AUTH_SERVER || 'https://moontv-auth.ihtw.moe';
+const AUTH_SERVER = 'https://moontv-auth.ihtw.moe';
 
 // 全局变量存储公钥和指纹
 let serverPublicKey: crypto.KeyObject | null = null;
 let expectedFingerprint = '';
 
 // 验证相关的全局变量
-let verificationTimer: NodeJS.Timeout | null = null;
-let networkFailureCount = 0;
-const MAX_NETWORK_FAILURES = 3;
 let currentMachineCode = '';
 
 /**
@@ -232,9 +229,6 @@ function serializeAsGoJsonMarshal(obj: any): string {
  */
 async function registerDevice(authCode: string, deviceCode: string) {
   try {
-    // 用户数量设置为0
-    const userCount = 0;
-
     // 生成请求时间戳
     const requestTimestamp = Date.now().toString();
 
@@ -251,7 +245,6 @@ async function registerDevice(authCode: string, deviceCode: string) {
       body: JSON.stringify({
         auth_code: authCode,
         device_code: deviceCode,
-        user_count: userCount,
         timestamp: requestTimestamp
       }),
       signal: controller.signal
@@ -279,125 +272,9 @@ async function registerDevice(authCode: string, deviceCode: string) {
   }
 }
 
-/**
- * 验证设备状态
- */
-async function verifyDevice(): Promise<void> {
-  try {
-    console.log('🔄 开始设备验证...');
 
-    // 用户数量设置为0
-    const userCount = 0;
 
-    // 生成请求时间戳
-    const requestTimestamp = Date.now().toString();
 
-    // 设置10秒超时
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(`${AUTH_SERVER}/api/verify_device`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'MoonTV/1.0.0'
-      },
-      body: JSON.stringify({
-        device_code: currentMachineCode,
-        auth_code: process.env.AUTH_TOKEN || '',
-        user_count: userCount,
-        timestamp: requestTimestamp
-      }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const responseBody = await response.text();
-    const apiResp: APIResponse = JSON.parse(responseBody);
-
-    // 验证响应签名（使用我们发送的时间戳）
-    await verifyResponse(apiResp, requestTimestamp);
-
-    if (!apiResp.success) {
-      console.error('❌ 设备验证失败，服务器即将退出');
-      console.error(`验证失败原因: ${apiResp.message}`);
-      process.exit(1);
-    }
-
-    // 重置网络失败计数
-    networkFailureCount = 0;
-    console.log(`✅ 设备验证通过，用户数量: ${userCount}`);
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-
-    // 判断是否为网络问题
-    const isNetworkError = errorMessage.includes('fetch') ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('ETIMEDOUT') ||
-      errorMessage.includes('aborted');
-
-    if (isNetworkError) {
-      networkFailureCount++;
-      console.warn(`⚠️ 网络验证失败 (${networkFailureCount}/${MAX_NETWORK_FAILURES}): ${errorMessage}`);
-
-      if (networkFailureCount >= MAX_NETWORK_FAILURES) {
-        console.error('❌ 网络验证失败次数超过限制，服务器即将退出');
-        process.exit(1);
-      }
-
-      // 5分钟后重试
-      console.log('🔄 将在 5 分钟后重试验证...');
-      setTimeout(() => {
-        verifyDevice().catch(err => {
-          console.error('验证重试失败:', err);
-        });
-      }, 5 * 60 * 1000); // 5分钟
-
-    } else {
-      // 非网络错误，直接退出
-      console.error('❌ 设备验证失败，服务器即将退出');
-      console.error(`验证失败原因: ${errorMessage}`);
-      process.exit(1);
-    }
-  }
-}
-
-/**
- * 启动定时验证
- */
-function startPeriodicVerification(): void {
-  console.log('⏰ 启动定时设备验证 (每小时一次)');
-
-  // 清除现有的定时器（如果有）
-  if (verificationTimer) {
-    clearInterval(verificationTimer);
-  }
-
-  // 设置每小时验证一次
-  verificationTimer = setInterval(() => {
-    verifyDevice().catch(err => {
-      console.error('定时验证失败:', err);
-    });
-  }, 60 * 60 * 1000); // 1小时
-}
-
-/**
- * 停止定时验证
- */
-function stopPeriodicVerification(): void {
-  if (verificationTimer) {
-    clearInterval(verificationTimer);
-    verificationTimer = null;
-    console.log('⏹️ 定时验证已停止');
-  }
-}
 
 /**
  * 环境变量检查
@@ -539,9 +416,6 @@ async function checkAuthentication(): Promise<void> {
     await registerDevice(authToken, deviceCode);
 
     console.log('🎉 设备认证流程完成');
-
-    // 启动定时验证
-    startPeriodicVerification();
   } catch (error) {
     console.error('❌ 认证流程失败:', error instanceof Error ? error.message : '未知错误');
     console.error('🚨 认证检查失败，服务器即将退出');
@@ -653,13 +527,11 @@ export async function register() {
     // 注册进程退出事件处理
     process.on('SIGINT', () => {
       console.log('\n🛑 收到 SIGINT 信号，正在优雅关闭...');
-      stopPeriodicVerification();
       process.exit(0);
     });
 
     process.on('SIGTERM', () => {
       console.log('\n🛑 收到 SIGTERM 信号，正在优雅关闭...');
-      stopPeriodicVerification();
       process.exit(0);
     });
 
@@ -668,7 +540,6 @@ export async function register() {
     } catch (error) {
       console.error('💥 启动检查过程中发生未预期错误:', error);
       console.error('🚨 服务器即将退出');
-      stopPeriodicVerification();
       process.exit(1);
     }
   }
@@ -681,8 +552,6 @@ export {
   checkEnvironment,
   decryptWithAES,
   fetchServerPublicKey,
-  startPeriodicVerification,
-  stopPeriodicVerification,
   verifyResponse,
   verifyTimestampSignature,
   serializeAsGoJsonMarshal

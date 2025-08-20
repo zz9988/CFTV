@@ -27,9 +27,8 @@ generateManifest();
 require('./server.js');
 
 // 每 1 秒轮询一次，直到请求成功
-const TARGET_URL = `http://${process.env.HOSTNAME || 'localhost'}:${
-  process.env.PORT || 3000
-}/login`;
+const TARGET_URL = `http://${process.env.HOSTNAME || 'localhost'}:${process.env.PORT || 3000
+  }/login`;
 
 const intervalId = setInterval(() => {
   console.log(`Fetching ${TARGET_URL} ...`);
@@ -40,8 +39,10 @@ const intervalId = setInterval(() => {
       console.log('Server is up, stop polling.');
       clearInterval(intervalId);
 
-      // 服务器启动后，立即执行一次 cron 任务
-      executeCronJob();
+      setTimeout(() => {
+        // 服务器启动后，立即执行一次 cron 任务
+        executeCronJob();
+      }, 3000);
 
       // 然后设置每小时执行一次 cron 任务
       setInterval(() => {
@@ -57,9 +58,8 @@ const intervalId = setInterval(() => {
 
 // 执行 cron 任务的函数
 function executeCronJob() {
-  const cronUrl = `http://${process.env.HOSTNAME || 'localhost'}:${
-    process.env.PORT || 3000
-  }/api/cron`;
+  const cronUrl = `http://${process.env.HOSTNAME || 'localhost'}:${process.env.PORT || 3000
+    }/api/cron`;
 
   console.log(`Executing cron job: ${cronUrl}`);
 

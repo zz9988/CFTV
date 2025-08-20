@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime } from '@/lib/config';
 import { getDetailFromApi } from '@/lib/downstream';
-import { getAuthInfoFromCookie } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 

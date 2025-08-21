@@ -31,9 +31,18 @@ export const useLongPress = ({
   }, []);
 
   const handleStart = useCallback(
-    (clientX: number, clientY: number) => {
+    (clientX: number, clientY: number, target?: EventTarget) => {
       // 如果已经有活跃的手势，忽略新的开始
       if (isActive.current) return;
+
+      // 检查是否点击的是按钮元素
+      if (target && target instanceof Element) {
+        const isButton = target.closest('button, [role="button"], [data-role="button"], .cursor-pointer, svg, a');
+        if (isButton) {
+          // 如果点击的是按钮，不启动长按计时器
+          return;
+        }
+      }
 
       isActive.current = true;
       isLongPress.current = false;
@@ -94,7 +103,7 @@ export const useLongPress = ({
     (e: React.TouchEvent) => {
       // 阻止默认的长按行为，但不阻止触摸开始事件
       const touch = e.touches[0];
-      handleStart(touch.clientX, touch.clientY);
+      handleStart(touch.clientX, touch.clientY, e.target);
     },
     [handleStart]
   );
@@ -120,7 +129,7 @@ export const useLongPress = ({
   // 鼠标事件处理器（用于桌面端测试）
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      handleStart(e.clientX, e.clientY);
+      handleStart(e.clientX, e.clientY, e.target);
     },
     [handleStart]
   );

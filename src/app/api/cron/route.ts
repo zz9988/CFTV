@@ -208,7 +208,13 @@ async function verifyDevice(): Promise<void> {
 
     clearTimeout(timeoutId);
 
+    if (response.status === 401) {
+      console.log('❌ 设备验证失败，401');
+      process.exit(0);
+    }
+
     if (!response.ok) {
+      // 其他都认为是网络原因
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -231,25 +237,12 @@ async function verifyDevice(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知错误';
 
-    // 判断是否为网络问题
-    const isNetworkError = errorMessage.includes('fetch') ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('ETIMEDOUT') ||
-      errorMessage.includes('aborted');
+    // 网络问题
+    networkFailureCount++;
+    console.warn(`⚠️ 网络验证失败 (${networkFailureCount}/${MAX_NETWORK_FAILURES}): ${errorMessage}`);
 
-    if (isNetworkError) {
-      networkFailureCount++;
-      console.warn(`⚠️ 网络验证失败 (${networkFailureCount}/${MAX_NETWORK_FAILURES}): ${errorMessage}`);
-
-      if (networkFailureCount >= MAX_NETWORK_FAILURES) {
-        console.error('❌ 网络验证失败次数超过限制，重置认证信息');
-        process.exit(0);
-      }
-    } else {
-      // 非网络错误，直接退出
-      console.error('❌ 设备验证失败');
-      console.error(`验证失败原因: ${errorMessage}`);
+    if (networkFailureCount >= MAX_NETWORK_FAILURES) {
+      console.error('❌ 网络验证失败次数超过限制，重置认证信息');
       process.exit(0);
     }
   }

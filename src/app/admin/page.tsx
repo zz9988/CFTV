@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion,react-hooks/exhaustive-deps */
 
 'use client';
 
@@ -22,7 +22,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  AlertCircle,
+  AlertTriangle,
   Check,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   Database,
@@ -36,7 +39,6 @@ import {
 import { GripVertical } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Swal from 'sweetalert2';
 
 import { AdminConfig, AdminConfigResult } from '@/lib/admin.types';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
@@ -44,18 +46,144 @@ import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 import DataMigration from '@/components/DataMigration';
 import PageLayout from '@/components/PageLayout';
 
-// 统一弹窗方法（必须在首次使用前定义）
-const showError = (message: string) =>
-  Swal.fire({ icon: 'error', title: '错误', text: message });
+// 通用弹窗组件
+interface AlertModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  type: 'success' | 'error' | 'warning';
+  title: string;
+  message?: string;
+  timer?: number;
+  showConfirm?: boolean;
+}
 
-const showSuccess = (message: string) =>
-  Swal.fire({
-    icon: 'success',
-    title: '成功',
-    text: message,
-    timer: 2000,
-    showConfirmButton: false,
+const AlertModal = ({
+  isOpen,
+  onClose,
+  type,
+  title,
+  message,
+  timer,
+  showConfirm = false
+}: AlertModalProps) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      if (timer) {
+        setTimeout(() => {
+          onClose();
+        }, timer);
+      }
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen, timer, onClose]);
+
+  if (!isOpen) return null;
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="w-8 h-8 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="w-8 h-8 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="w-8 h-8 text-yellow-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getBgColor = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+      case 'error':
+        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+      case 'warning':
+        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800';
+      default:
+        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
+    }
+  };
+
+  return createPortal(
+    <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full border ${getBgColor()} transition-all duration-200 ${isVisible ? 'scale-100' : 'scale-95'}`}>
+        <div className="p-6 text-center">
+          <div className="flex justify-center mb-4">
+            {getIcon()}
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            {title}
+          </h3>
+
+          {message && (
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {message}
+            </p>
+          )}
+
+          {showConfirm && (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              确定
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// 弹窗状态管理
+const useAlertModal = () => {
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning';
+    title: string;
+    message?: string;
+    timer?: number;
+    showConfirm?: boolean;
+  }>({
+    isOpen: false,
+    type: 'success',
+    title: '',
   });
+
+  const showAlert = (config: Omit<typeof alertModal, 'isOpen'>) => {
+    setAlertModal({ ...config, isOpen: true });
+  };
+
+  const hideAlert = () => {
+    setAlertModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  return { alertModal, showAlert, hideAlert };
+};
+
+// 统一弹窗方法（必须在首次使用前定义）
+const showError = (message: string, showAlert?: (config: any) => void) => {
+  if (showAlert) {
+    showAlert({ type: 'error', title: '错误', message, showConfirm: true });
+  } else {
+    console.error(message);
+  }
+};
+
+const showSuccess = (message: string, showAlert?: (config: any) => void) => {
+  if (showAlert) {
+    showAlert({ type: 'success', title: '成功', message, timer: 2000 });
+  } else {
+    console.log(message);
+  }
+};
 
 // 新增站点配置类型
 interface SiteConfig {
@@ -136,6 +264,7 @@ interface UserConfigProps {
 }
 
 const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [showAddUserGroupForm, setShowAddUserGroupForm] = useState(false);
@@ -165,6 +294,20 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     tags?: string[];
   } | null>(null);
   const [selectedApis, setSelectedApis] = useState<string[]>([]);
+  const [showConfigureUserGroupModal, setShowConfigureUserGroupModal] = useState(false);
+  const [selectedUserForGroup, setSelectedUserForGroup] = useState<{
+    username: string;
+    role: 'user' | 'admin' | 'owner';
+    tags?: string[];
+  } | null>(null);
+  const [selectedUserGroups, setSelectedUserGroups] = useState<string[]>([]);
+  const [showDeleteUserGroupModal, setShowDeleteUserGroupModal] = useState(false);
+  const [deletingUserGroup, setDeletingUserGroup] = useState<{
+    name: string;
+    affectedUsers: Array<{ username: string; role: 'user' | 'admin' | 'owner' }>;
+  } | null>(null);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
 
   // 当前登录用户名
   const currentUsername = getAuthInfoFromBrowserCookie()?.username || null;
@@ -205,9 +348,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         setShowEditUserGroupForm(false);
       }
 
-      showSuccess(action === 'add' ? '用户组添加成功' : action === 'edit' ? '用户组更新成功' : '用户组删除成功');
+      showSuccess(action === 'add' ? '用户组添加成功' : action === 'edit' ? '用户组更新成功' : '用户组删除成功', showAlert);
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
     }
   };
 
@@ -221,51 +364,29 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     handleUserGroupAction('edit', editingUserGroup.name, editingUserGroup.enabledApis);
   };
 
-  const handleDeleteUserGroup = async (groupName: string) => {
+  const handleDeleteUserGroup = (groupName: string) => {
     // 计算会受影响的用户数量
     const affectedUsers = config?.UserConfig?.Users?.filter(user =>
       user.tags && user.tags.includes(groupName)
     ) || [];
 
-    const affectedCount = affectedUsers.length;
-    const affectedUserNames = affectedUsers.map(u => u.username).join(', ');
-
-    const { isConfirmed } = await Swal.fire({
-      title: '确认删除用户组',
-      html: `
-        <div class="text-left">
-          <p class="mb-3">删除用户组 <strong>${groupName}</strong> 将影响所有使用该组的用户，此操作不可恢复！</p>
-          ${affectedCount > 0 ? `
-            <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
-              <p class="text-sm text-yellow-800 dark:text-yellow-200 font-medium mb-1">
-                ⚠️ 将影响 ${affectedCount} 个用户：
-              </p>
-              <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                ${affectedUserNames}
-              </p>
-              <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                这些用户的用户组将被自动移除
-              </p>
-            </div>
-          ` : `
-            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-3">
-              <p class="text-sm text-green-800 dark:text-green-200">
-                ✅ 当前没有用户使用此用户组
-              </p>
-            </div>
-          `}
-        </div>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
-      confirmButtonColor: '#dc2626',
+    setDeletingUserGroup({
+      name: groupName,
+      affectedUsers: affectedUsers.map(u => ({ username: u.username, role: u.role }))
     });
+    setShowDeleteUserGroupModal(true);
+  };
 
-    if (!isConfirmed) return;
+  const handleConfirmDeleteUserGroup = async () => {
+    if (!deletingUserGroup) return;
 
-    await handleUserGroupAction('delete', groupName);
+    try {
+      await handleUserGroupAction('delete', deletingUserGroup.name);
+      setShowDeleteUserGroupModal(false);
+      setDeletingUserGroup(null);
+    } catch (err) {
+      // 错误处理已在 handleUserGroupAction 中处理
+    }
   };
 
   const handleStartEditUserGroup = (group: { name: string; enabledApis: string[] }) => {
@@ -293,9 +414,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
       }
 
       await refreshConfig();
-      showSuccess('用户组分配成功');
+      showSuccess('用户组分配成功', showAlert);
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
     }
   };
 
@@ -339,20 +460,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     setShowAddUserForm(false); // 关闭添加用户表单
   };
 
-  const handleDeleteUser = async (username: string) => {
-    const { isConfirmed } = await Swal.fire({
-      title: '确认删除用户',
-      text: `删除用户 ${username} 将同时删除其搜索历史、播放记录和收藏夹，此操作不可恢复！`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
-      confirmButtonColor: '#dc2626',
-    });
-
-    if (!isConfirmed) return;
-
-    await handleUserAction('deleteUser', username);
+  const handleDeleteUser = (username: string) => {
+    setDeletingUser(username);
+    setShowDeleteUserModal(true);
   };
 
   const handleConfigureUserApis = (user: {
@@ -363,6 +473,29 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     setSelectedUser(user);
     setSelectedApis(user.enabledApis || []);
     setShowConfigureApisModal(true);
+  };
+
+  const handleConfigureUserGroup = (user: {
+    username: string;
+    role: 'user' | 'admin' | 'owner';
+    tags?: string[];
+  }) => {
+    setSelectedUserForGroup(user);
+    setSelectedUserGroups(user.tags || []);
+    setShowConfigureUserGroupModal(true);
+  };
+
+  const handleSaveUserGroups = async () => {
+    if (!selectedUserForGroup) return;
+
+    try {
+      await handleAssignUserGroup(selectedUserForGroup.username, selectedUserGroups);
+      setShowConfigureUserGroupModal(false);
+      setSelectedUserForGroup(null);
+      setSelectedUserGroups([]);
+    } catch (err) {
+      // 错误处理已在 handleAssignUserGroup 中处理
+    }
   };
 
   // 提取URL域名的辅助函数
@@ -401,7 +534,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
       setSelectedUser(null);
       setSelectedApis([]);
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
     }
   };
 
@@ -439,7 +572,19 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
       // 成功后刷新配置（无需整页刷新）
       await refreshConfig();
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
+    }
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    try {
+      await handleUserAction('deleteUser', deletingUser);
+      setShowDeleteUserModal(false);
+      setDeletingUser(null);
+    } catch (err) {
+      // 错误处理已在 handleUserAction 中处理
     }
   };
 
@@ -795,31 +940,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                 (user.role === 'user' ||
                                   user.username === currentUsername))) && (
                                 <button
-                                  onClick={async () => {
-                                    const currentGroups = user.tags || [];
-                                    const result = await Swal.fire({
-                                      title: '配置用户组',
-                                      input: 'select',
-                                      inputOptions: Object.fromEntries([
-                                        ['', '无用户组（无限制）'],
-                                        ...userGroups.map(group => [group.name, `${group.name} (${group.enabledApis && group.enabledApis.length > 0 ? `${group.enabledApis.length} 个源` : '无限制'})`])
-                                      ]),
-                                      inputValue: currentGroups.length > 0 ? currentGroups[0] : '',
-                                      inputPlaceholder: '选择用户组',
-                                      showCancelButton: true,
-                                      confirmButtonText: '确定',
-                                      cancelButtonText: '取消',
-                                      inputValidator: (value) => {
-                                        if (value === undefined) {
-                                          return '请选择用户组';
-                                        }
-                                      }
-                                    });
-                                    if (result.isConfirmed && result.value !== undefined) {
-                                      const groups = result.value ? [result.value] : [];
-                                      handleAssignUserGroup(user.username, groups);
-                                    }
-                                  }}
+                                  onClick={() => handleConfigureUserGroup(user)}
                                   className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
                                 >
                                   配置
@@ -1278,9 +1399,271 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         </div>,
         document.body
       )}
+
+      {/* 配置用户组弹窗 */}
+      {showConfigureUserGroupModal && selectedUserForGroup && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto'>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  配置用户组 - {selectedUserForGroup.username}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowConfigureUserGroupModal(false);
+                    setSelectedUserForGroup(null);
+                    setSelectedUserGroups([]);
+                  }}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-blue-600 dark:text-blue-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                    </svg>
+                    <span className='text-sm font-medium text-blue-800 dark:text-blue-300'>
+                      配置说明
+                    </span>
+                  </div>
+                  <p className='text-sm text-blue-700 dark:text-blue-400 mt-1'>
+                    提示：选择"无用户组"为无限制，选择特定用户组将限制用户只能访问该用户组允许的采集源
+                  </p>
+                </div>
+              </div>
+
+              {/* 用户组选择 - 下拉选择器 */}
+              <div className='mb-6'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  选择用户组：
+                </label>
+                <select
+                  value={selectedUserGroups.length > 0 ? selectedUserGroups[0] : ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedUserGroups(value ? [value] : []);
+                  }}
+                  className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors'
+                >
+                  <option value=''>无用户组（无限制）</option>
+                  {userGroups.map((group) => (
+                    <option key={group.name} value={group.name}>
+                      {group.name} {group.enabledApis && group.enabledApis.length > 0 ? `(${group.enabledApis.length} 个源)` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                  选择"无用户组"为无限制，选择特定用户组将限制用户只能访问该用户组允许的采集源
+                </p>
+              </div>
+
+
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => {
+                    setShowConfigureUserGroupModal(false);
+                    setSelectedUserForGroup(null);
+                    setSelectedUserGroups([]);
+                  }}
+                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSaveUserGroups}
+                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                >
+                  确认配置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 删除用户组确认弹窗 */}
+      {showDeleteUserGroupModal && deletingUserGroup && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full'>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  确认删除用户组
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowDeleteUserGroupModal(false);
+                    setDeletingUserGroup(null);
+                  }}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-red-600 dark:text-red-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z' />
+                    </svg>
+                    <span className='text-sm font-medium text-red-800 dark:text-red-300'>
+                      危险操作警告
+                    </span>
+                  </div>
+                  <p className='text-sm text-red-700 dark:text-red-400'>
+                    删除用户组 <strong>{deletingUserGroup.name}</strong> 将影响所有使用该组的用户，此操作不可恢复！
+                  </p>
+                </div>
+
+                {deletingUserGroup.affectedUsers.length > 0 ? (
+                  <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4'>
+                    <div className='flex items-center space-x-2 mb-2'>
+                      <svg className='w-5 h-5 text-yellow-600 dark:text-yellow-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                      </svg>
+                      <span className='text-sm font-medium text-yellow-800 dark:text-yellow-300'>
+                        ⚠️ 将影响 {deletingUserGroup.affectedUsers.length} 个用户：
+                      </span>
+                    </div>
+                    <div className='space-y-1'>
+                      {deletingUserGroup.affectedUsers.map((user, index) => (
+                        <div key={index} className='text-sm text-yellow-700 dark:text-yellow-300'>
+                          • {user.username} ({user.role})
+                        </div>
+                      ))}
+                    </div>
+                    <p className='text-xs text-yellow-600 dark:text-yellow-400 mt-2'>
+                      这些用户的用户组将被自动移除
+                    </p>
+                  </div>
+                ) : (
+                  <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4'>
+                    <div className='flex items-center space-x-2'>
+                      <svg className='w-5 h-5 text-green-600 dark:text-green-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M5 13l4 4L19 7' />
+                      </svg>
+                      <span className='text-sm font-medium text-green-800 dark:text-green-300'>
+                        ✅ 当前没有用户使用此用户组
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => {
+                    setShowDeleteUserGroupModal(false);
+                    setDeletingUserGroup(null);
+                  }}
+                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleConfirmDeleteUserGroup}
+                  className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                >
+                  确认删除
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 删除用户确认弹窗 */}
+      {showDeleteUserModal && deletingUser && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full'>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  确认删除用户
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowDeleteUserModal(false);
+                    setDeletingUser(null);
+                  }}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-red-600 dark:text-red-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z' />
+                    </svg>
+                    <span className='text-sm font-medium text-red-800 dark:text-red-300'>
+                      危险操作警告
+                    </span>
+                  </div>
+                  <p className='text-sm text-red-700 dark:text-red-400'>
+                    删除用户 <strong>{deletingUser}</strong> 将同时删除其搜索历史、播放记录和收藏夹，此操作不可恢复！
+                  </p>
+                </div>
+
+                {/* 操作按钮 */}
+                <div className='flex justify-end space-x-3'>
+                  <button
+                    onClick={() => {
+                      setShowDeleteUserModal(false);
+                      setDeletingUser(null);
+                    }}
+                    className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleConfirmDeleteUser}
+                    className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                  >
+                    确认删除
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
+
+
     </div>
   );
-};
+}
 
 // 视频源配置组件
 const VideoSourceConfig = ({
@@ -1290,6 +1673,7 @@ const VideoSourceConfig = ({
   config: AdminConfig | null;
   refreshConfig: () => Promise<void>;
 }) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [sources, setSources] = useState<DataSource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -1343,7 +1727,7 @@ const VideoSourceConfig = ({
       // 成功后刷新配置
       await refreshConfig();
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
       throw err; // 向上抛出方便调用处判断
     }
   };
@@ -1616,6 +2000,17 @@ const VideoSourceConfig = ({
           </button>
         </div>
       )}
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
     </div>
   );
 };
@@ -1628,6 +2023,7 @@ const CategoryConfig = ({
   config: AdminConfig | null;
   refreshConfig: () => Promise<void>;
 }) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [categories, setCategories] = useState<CustomCategory[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -1680,7 +2076,7 @@ const CategoryConfig = ({
       // 成功后刷新配置
       await refreshConfig();
     } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败');
+      showError(err instanceof Error ? err.message : '操作失败', showAlert);
       throw err; // 向上抛出方便调用处判断
     }
   };
@@ -1952,12 +2348,24 @@ const CategoryConfig = ({
           </button>
         </div>
       )}
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
     </div>
   );
 };
 
 // 新增配置文件组件
 const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [configContent, setConfigContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [subscriptionUrl, setSubscriptionUrl] = useState('');
@@ -1983,7 +2391,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
   // 拉取订阅配置
   const handleFetchConfig = async () => {
     if (!subscriptionUrl.trim()) {
-      showError('请输入订阅URL');
+      showError('请输入订阅URL', showAlert);
       return;
     }
 
@@ -2006,12 +2414,12 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         // 更新本地配置的最后检查时间
         const currentTime = new Date().toISOString();
         setLastCheckTime(currentTime);
-        showSuccess('配置拉取成功');
+        showSuccess('配置拉取成功', showAlert);
       } else {
-        showError('拉取失败：未获取到配置内容');
+        showError('拉取失败：未获取到配置内容', showAlert);
       }
     } catch (err) {
-      showError(err instanceof Error ? err.message : '拉取失败');
+      showError(err instanceof Error ? err.message : '拉取失败', showAlert);
     } finally {
       setFetching(false);
     }
@@ -2037,10 +2445,10 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         throw new Error(data.error || `保存失败: ${resp.status}`);
       }
 
-      showSuccess('配置文件保存成功');
+      showSuccess('配置文件保存成功', showAlert);
       await refreshConfig();
     } catch (err) {
-      showError(err instanceof Error ? err.message : '保存失败');
+      showError(err instanceof Error ? err.message : '保存失败', showAlert);
     } finally {
       setSaving(false);
     }
@@ -2173,12 +2581,24 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           </button>
         </div>
       </div>
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
     </div>
   );
 };
 
 // 新增站点配置组件
 const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [siteSettings, setSiteSettings] = useState<SiteConfig>({
     SiteName: '',
     Announcement: '',
@@ -2331,10 +2751,10 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         throw new Error(data.error || `保存失败: ${resp.status}`);
       }
 
-      showSuccess('保存成功, 请刷新页面');
+      showSuccess('保存成功, 请刷新页面', showAlert);
       await refreshConfig();
     } catch (err) {
-      showError(err instanceof Error ? err.message : '保存失败');
+      showError(err instanceof Error ? err.message : '保存失败', showAlert);
     } finally {
       setSaving(false);
     }
@@ -2727,15 +3147,28 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           {saving ? '保存中…' : '保存'}
         </button>
       </div>
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
     </div>
   );
 };
 
 function AdminPageClient() {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<'owner' | 'admin' | null>(null);
+  const [showResetConfigModal, setShowResetConfigModal] = useState(false);
   const [expandedTabs, setExpandedTabs] = useState<{ [key: string]: boolean }>({
     userConfig: false,
     videoSource: false,
@@ -2765,7 +3198,7 @@ function AdminPageClient() {
       setRole(data.Role);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '获取配置失败';
-      showError(msg);
+      showError(msg, showAlert);
       setError(msg);
     } finally {
       if (showLoading) {
@@ -2788,26 +3221,21 @@ function AdminPageClient() {
   };
 
   // 新增: 重置配置处理函数
-  const handleResetConfig = async () => {
-    const { isConfirmed } = await Swal.fire({
-      title: '确认重置配置',
-      text: '此操作将重置用户封禁和管理员设置、自定义视频源，站点配置将重置为默认值，是否继续？',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-    });
-    if (!isConfirmed) return;
+  const handleResetConfig = () => {
+    setShowResetConfigModal(true);
+  };
 
+  const handleConfirmResetConfig = async () => {
     try {
       const response = await fetch(`/api/admin/reset`);
       if (!response.ok) {
         throw new Error(`重置失败: ${response.status}`);
       }
-      showSuccess('重置成功，请刷新页面！');
+      showSuccess('重置成功，请刷新页面！', showAlert);
       await fetchConfig();
+      setShowResetConfigModal(false);
     } catch (err) {
-      showError(err instanceof Error ? err.message : '重置失败');
+      showError(err instanceof Error ? err.message : '重置失败', showAlert);
     }
   };
 
@@ -2834,7 +3262,7 @@ function AdminPageClient() {
   }
 
   if (error) {
-    // 错误已通过 SweetAlert2 展示，此处直接返回空
+    // 错误已通过弹窗展示，此处直接返回空
     return null;
   }
 
@@ -2952,6 +3380,73 @@ function AdminPageClient() {
           </div>
         </div>
       </div>
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
+
+      {/* 重置配置确认弹窗 */}
+      {showResetConfigModal && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full'>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  确认重置配置
+                </h3>
+                <button
+                  onClick={() => setShowResetConfigModal(false)}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-yellow-600 dark:text-yellow-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                    </svg>
+                    <span className='text-sm font-medium text-yellow-800 dark:text-yellow-300'>
+                      ⚠️ 危险操作警告
+                    </span>
+                  </div>
+                  <p className='text-sm text-yellow-700 dark:text-yellow-400'>
+                    此操作将重置用户封禁和管理员设置、自定义视频源，站点配置将重置为默认值，是否继续？
+                  </p>
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => setShowResetConfigModal(false)}
+                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleConfirmResetConfig}
+                  className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                >
+                  确认重置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </PageLayout>
   );
 }

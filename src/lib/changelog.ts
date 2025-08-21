@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.1.1",
+    date: "2025-08-21",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复了视频卡片 hover 的非播放按钮点击后进入播放页的问题"
+    ]
+  },
+  {
     version: "3.1.0",
     date: "2025-08-21",
     added: [

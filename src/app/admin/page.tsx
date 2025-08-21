@@ -1686,6 +1686,18 @@ const VideoSourceConfig = ({
     from: 'config',
   });
 
+  // 有效性检测相关状态
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<Array<{
+    key: string;
+    name: string;
+    status: 'valid' | 'no_results' | 'invalid' | 'validating';
+    message: string;
+    resultCount: number;
+  }>>([]);
+
   // dnd-kit 传感器
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1792,6 +1804,139 @@ const VideoSourceConfig = ({
       });
   };
 
+  // 有效性检测函数
+  const handleValidateSources = async () => {
+    if (!searchKeyword.trim()) {
+      showAlert({ type: 'warning', title: '请输入搜索关键词', message: '搜索关键词不能为空' });
+      return;
+    }
+
+    setIsValidating(true);
+    setValidationResults([]); // 清空之前的结果
+    setShowValidationModal(false); // 立即关闭弹窗
+
+    // 初始化所有视频源为检测中状态
+    const initialResults = sources.map(source => ({
+      key: source.key,
+      name: source.name,
+      status: 'validating' as const,
+      message: '检测中...',
+      resultCount: 0
+    }));
+    setValidationResults(initialResults);
+
+    try {
+      // 使用EventSource接收流式数据
+      const eventSource = new EventSource(`/api/admin/source/validate?q=${encodeURIComponent(searchKeyword.trim())}`);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          switch (data.type) {
+            case 'start':
+              console.log(`开始检测 ${data.totalSources} 个视频源`);
+              break;
+
+            case 'source_result':
+            case 'source_error':
+              // 更新验证结果
+              setValidationResults(prev => {
+                const existing = prev.find(r => r.key === data.source);
+                if (existing) {
+                  return prev.map(r => r.key === data.source ? {
+                    key: data.source,
+                    name: sources.find(s => s.key === data.source)?.name || data.source,
+                    status: data.status,
+                    message: data.status === 'valid' ? '搜索正常' :
+                      data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
+                    resultCount: data.status === 'valid' ? 1 : 0
+                  } : r);
+                } else {
+                  return [...prev, {
+                    key: data.source,
+                    name: sources.find(s => s.key === data.source)?.name || data.source,
+                    status: data.status,
+                    message: data.status === 'valid' ? '搜索正常' :
+                      data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
+                    resultCount: data.status === 'valid' ? 1 : 0
+                  }];
+                }
+              });
+              break;
+
+            case 'complete':
+              console.log(`检测完成，共检测 ${data.completedSources} 个视频源`);
+              eventSource.close();
+              setIsValidating(false);
+              break;
+          }
+        } catch (error) {
+          console.error('解析EventSource数据失败:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('EventSource错误:', error);
+        eventSource.close();
+        setIsValidating(false);
+        showAlert({ type: 'error', title: '验证失败', message: '连接错误，请重试' });
+      };
+
+      // 设置超时，防止长时间等待
+      setTimeout(() => {
+        if (eventSource.readyState === EventSource.OPEN) {
+          eventSource.close();
+          setIsValidating(false);
+          showAlert({ type: 'warning', title: '验证超时', message: '检测超时，请重试' });
+        }
+      }, 60000); // 60秒超时
+
+    } catch (error) {
+      setIsValidating(false);
+      showAlert({ type: 'error', title: '验证失败', message: error instanceof Error ? error.message : '未知错误' });
+    }
+  };
+
+  // 获取有效性状态显示
+  const getValidationStatus = (sourceKey: string) => {
+    const result = validationResults.find(r => r.key === sourceKey);
+    if (!result) return null;
+
+    switch (result.status) {
+      case 'validating':
+        return {
+          text: '检测中',
+          className: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300',
+          icon: '⟳',
+          message: result.message
+        };
+      case 'valid':
+        return {
+          text: '有效',
+          className: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300',
+          icon: '✓',
+          message: result.message
+        };
+      case 'no_results':
+        return {
+          text: '无法搜索',
+          className: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300',
+          icon: '⚠',
+          message: result.message
+        };
+      case 'invalid':
+        return {
+          text: '无效',
+          className: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300',
+          icon: '✗',
+          message: result.message
+        };
+      default:
+        return null;
+    }
+  };
+
   // 可拖拽行封装 (dnd-kit)
   const DraggableRow = ({ source }: { source: DataSource }) => {
     const { attributes, listeners, setNodeRef, transform, transition } =
@@ -1844,6 +1989,23 @@ const VideoSourceConfig = ({
             {!source.disabled ? '启用中' : '已禁用'}
           </span>
         </td>
+        <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
+          {(() => {
+            const status = getValidationStatus(source.key);
+            if (!status) {
+              return (
+                <span className='px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400'>
+                  未检测
+                </span>
+              );
+            }
+            return (
+              <span className={`px-2 py-1 text-xs rounded-full ${status.className}`} title={status.message}>
+                {status.icon} {status.text}
+              </span>
+            );
+          })()}
+        </td>
         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
           <button
             onClick={() => handleToggleEnable(source.key)}
@@ -1882,12 +2044,31 @@ const VideoSourceConfig = ({
         <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
           视频源列表
         </h4>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
-        >
-          {showAddForm ? '取消' : '添加视频源'}
-        </button>
+        <div className='flex items-center space-x-2'>
+          <button
+            onClick={() => setShowValidationModal(true)}
+            disabled={isValidating}
+            className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center space-x-1 ${isValidating
+              ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+          >
+            {isValidating ? (
+              <>
+                <div className='w-3 h-3 border border-white border-t-transparent rounded-full animate-spin'></div>
+                <span>检测中...</span>
+              </>
+            ) : (
+              '有效性检测'
+            )}
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
+          >
+            {showAddForm ? '取消' : '添加视频源'}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -1963,6 +2144,9 @@ const VideoSourceConfig = ({
               <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 状态
               </th>
+              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                有效性
+              </th>
               <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 操作
               </th>
@@ -1999,6 +2183,46 @@ const VideoSourceConfig = ({
             保存排序
           </button>
         </div>
+      )}
+
+      {/* 有效性检测弹窗 */}
+      {showValidationModal && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4'>
+            <h3 className='text-lg font-medium text-gray-900 dark:text-gray-100 mb-4'>
+              视频源有效性检测
+            </h3>
+            <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
+              请输入检测用的搜索关键词
+            </p>
+            <div className='space-y-4'>
+              <input
+                type='text'
+                placeholder='请输入搜索关键词'
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                onKeyPress={(e) => e.key === 'Enter' && handleValidateSources()}
+              />
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => setShowValidationModal(false)}
+                  className='px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleValidateSources}
+                  disabled={isValidating || !searchKeyword.trim()}
+                  className='px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+                >
+                  {isValidating ? `检测中... (${validationResults.length}/${sources.length})` : '开始检测'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* 通用弹窗组件 */}

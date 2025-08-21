@@ -212,19 +212,29 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   );
 
   const handleClick = useCallback(() => {
+    console.log('🎬 VideoCard handleClick - 被调用', {
+      from,
+      actualSource,
+      actualId,
+      actualTitle,
+      isAggregate
+    });
+
     if (from === 'douban' || (isAggregate && !actualSource && !actualId)) {
-      router.push(
-        `/play?title=${encodeURIComponent(actualTitle.trim())}${actualYear ? `&year=${actualYear}` : ''
-        }${actualSearchType ? `&stype=${actualSearchType}` : ''}${isAggregate ? '&prefer=true' : ''}${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''}`
-      );
+      const url = `/play?title=${encodeURIComponent(actualTitle.trim())}${actualYear ? `&year=${actualYear}` : ''
+        }${actualSearchType ? `&stype=${actualSearchType}` : ''}${isAggregate ? '&prefer=true' : ''}${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''}`;
+      console.log('🎬 VideoCard handleClick - 导航到豆瓣/聚合:', url);
+      router.push(url);
     } else if (actualSource && actualId) {
-      router.push(
-        `/play?source=${actualSource}&id=${actualId}&title=${encodeURIComponent(
-          actualTitle
-        )}${actualYear ? `&year=${actualYear}` : ''}${isAggregate ? '&prefer=true' : ''
+      const url = `/play?source=${actualSource}&id=${actualId}&title=${encodeURIComponent(
+        actualTitle
+      )}${actualYear ? `&year=${actualYear}` : ''}${isAggregate ? '&prefer=true' : ''
         }${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''
-        }${actualSearchType ? `&stype=${actualSearchType}` : ''}`
-      );
+        }${actualSearchType ? `&stype=${actualSearchType}` : ''}`;
+      console.log('🎬 VideoCard handleClick - 导航到播放页:', url);
+      router.push(url);
+    } else {
+      console.log('🔴 VideoCard handleClick - 无法导航，缺少必要参数');
     }
   }, [
     from,
@@ -538,6 +548,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           {/* 播放按钮 */}
           {config.showPlayButton && (
             <div
+              data-button="true"
               className='absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 ease-in-out delay-75 group-hover:opacity-100 group-hover:scale-100'
               style={{
                 WebkitUserSelect: 'none',
@@ -569,6 +580,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           {/* 操作按钮 */}
           {(config.showHeart || config.showCheckCircle) && (
             <div
+              data-button="true"
               className='absolute bottom-3 right-3 flex gap-3 opacity-0 translate-y-2 transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:translate-y-0'
               style={{
                 WebkitUserSelect: 'none',

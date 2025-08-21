@@ -289,6 +289,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     role: 'owner',
     banned: false,
     enabledApis: originOwnerCfg?.enabledApis || undefined,
+    tags: originOwnerCfg?.tags || undefined,
   });
 
   // 采集源去重
@@ -338,17 +339,51 @@ export async function getCacheTime(): Promise<number> {
 export async function getAvailableApiSites(user?: string): Promise<ApiSite[]> {
   const config = await getConfig();
   const allApiSites = config.SourceConfig.filter((s) => !s.disabled);
-  const userApiSites = user ? config.UserConfig.Users.find((u) => u.username === user)?.enabledApis || [] : [];
-  if (userApiSites.length === 0) {
+
+  if (!user) {
     return allApiSites;
   }
-  const userApiSitesSet = new Set(userApiSites);
-  return allApiSites.filter((s) => userApiSitesSet.has(s.key)).map((s) => ({
-    key: s.key,
-    name: s.name,
-    api: s.api,
-    detail: s.detail,
-  }));
+
+  const userConfig = config.UserConfig.Users.find((u) => u.username === user);
+  if (!userConfig) {
+    return allApiSites;
+  }
+
+  // 优先根据用户自己的 enabledApis 配置查找
+  if (userConfig.enabledApis && userConfig.enabledApis.length > 0) {
+    const userApiSitesSet = new Set(userConfig.enabledApis);
+    return allApiSites.filter((s) => userApiSitesSet.has(s.key)).map((s) => ({
+      key: s.key,
+      name: s.name,
+      api: s.api,
+      detail: s.detail,
+    }));
+  }
+
+  // 如果没有 enabledApis 配置，则根据 tags 查找
+  if (userConfig.tags && userConfig.tags.length > 0 && config.UserConfig.Tags) {
+    const enabledApisFromTags = new Set<string>();
+
+    // 遍历用户的所有 tags，收集对应的 enabledApis
+    userConfig.tags.forEach(tagName => {
+      const tagConfig = config.UserConfig.Tags?.find(t => t.name === tagName);
+      if (tagConfig && tagConfig.enabledApis) {
+        tagConfig.enabledApis.forEach(apiKey => enabledApisFromTags.add(apiKey));
+      }
+    });
+
+    if (enabledApisFromTags.size > 0) {
+      return allApiSites.filter((s) => enabledApisFromTags.has(s.key)).map((s) => ({
+        key: s.key,
+        name: s.name,
+        api: s.api,
+        detail: s.detail,
+      }));
+    }
+  }
+
+  // 如果都没有配置，返回所有可用的 API 站点
+  return allApiSites;
 }
 
 export async function setCachedConfig(config: AdminConfig) {

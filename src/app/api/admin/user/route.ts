@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       if (
         targetEntry &&
         targetEntry.role === 'owner' &&
-        action !== 'changePassword'
+        !['changePassword', 'updateUserApis', 'updateUserGroups'].includes(action)
       ) {
         return NextResponse.json({ error: '无法操作站长' }, { status: 400 });
       }

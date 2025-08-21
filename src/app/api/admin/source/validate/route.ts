@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any,no-console */
+
 import { NextRequest, NextResponse } from 'next/server';
+
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { API_CONFIG } from '@/lib/config';
@@ -91,9 +94,6 @@ export async function GET(request: NextRequest) {
 
             // 检查结果是否有效
             let status: 'valid' | 'no_results' | 'invalid';
-            let message: string;
-            let resultCount: number;
-
             if (
               data &&
               data.list &&
@@ -108,17 +108,11 @@ export async function GET(request: NextRequest) {
 
               if (validResults.length > 0) {
                 status = 'valid';
-                message = `搜索正常，找到 ${validResults.length} 个相关结果`;
-                resultCount = validResults.length;
               } else {
                 status = 'no_results';
-                message = '搜索结果中无相关标题';
-                resultCount = 0;
               }
             } else {
               status = 'no_results';
-              message = '无法搜索到结果';
-              resultCount = 0;
             }
 
             // 发送该源的验证结果

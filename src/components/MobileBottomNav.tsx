@@ -2,7 +2,7 @@
 
 'use client';
 
-import { Cat, Clover, Film, Home, Search, Star, Tv } from 'lucide-react';
+import { Cat, Clover, Film, Home, Star, Tv } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';

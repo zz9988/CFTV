@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.1.2",
+    date: "2025-08-22",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复移动端卡片无法点击的问题"
+    ]
+  },
+  {
     version: "3.1.1",
     date: "2025-08-21",
     added: [

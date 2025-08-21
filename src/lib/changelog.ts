@@ -11,6 +11,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.1.0",
+    date: "2025-08-21",
+    added: [
+    "增加用户组管理和用户组播放源限制",
+    "增加管理面板视频源有效性检查",
+    "搜索栏增加一键删除按钮"
+    ],
+    changed: [
+    "放宽授权心跳对于网络问题的判断标准",
+    "统一管理面板弹窗使用 createPortal",
+    "VideoCard 允许移动端响应 hover 事件",
+    "移动端布局 header 常驻，搜索按钮移动到 header 右侧",
+    "调大搜索接口超时时间"
+    ],
+    fixed: [
+    "修复 bangumi 返回的整数评分无小数导致 UI 不对齐的问题"
+    ]
+  },
+  {
     version: "3.0.2",
     date: "2025-08-20",
     added: [

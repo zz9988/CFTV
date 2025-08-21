@@ -212,18 +212,9 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   );
 
   const handleClick = useCallback(() => {
-    console.log('🎬 VideoCard handleClick - 被调用', {
-      from,
-      actualSource,
-      actualId,
-      actualTitle,
-      isAggregate
-    });
-
     if (from === 'douban' || (isAggregate && !actualSource && !actualId)) {
       const url = `/play?title=${encodeURIComponent(actualTitle.trim())}${actualYear ? `&year=${actualYear}` : ''
         }${actualSearchType ? `&stype=${actualSearchType}` : ''}${isAggregate ? '&prefer=true' : ''}${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''}`;
-      console.log('🎬 VideoCard handleClick - 导航到豆瓣/聚合:', url);
       router.push(url);
     } else if (actualSource && actualId) {
       const url = `/play?source=${actualSource}&id=${actualId}&title=${encodeURIComponent(
@@ -231,10 +222,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
       )}${actualYear ? `&year=${actualYear}` : ''}${isAggregate ? '&prefer=true' : ''
         }${actualQuery ? `&stitle=${encodeURIComponent(actualQuery.trim())}` : ''
         }${actualSearchType ? `&stype=${actualSearchType}` : ''}`;
-      console.log('🎬 VideoCard handleClick - 导航到播放页:', url);
       router.push(url);
-    } else {
-      console.log('🔴 VideoCard handleClick - 无法导航，缺少必要参数');
     }
   }, [
     from,

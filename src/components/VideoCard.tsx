@@ -583,7 +583,6 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
               {config.showCheckCircle && (
                 <Trash2
                   onClick={handleDeleteRecord}
-                  data-role="button"
                   size={20}
                   className='text-white transition-all duration-300 ease-out hover:stroke-red-500 hover:scale-[1.1]'
                   style={{
@@ -600,7 +599,6 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
               {config.showHeart && (
                 <Heart
                   onClick={handleToggleFavorite}
-                  data-role="button"
                   size={20}
                   className={`transition-all duration-300 ease-out ${favorited
                     ? 'fill-red-600 stroke-red-600'

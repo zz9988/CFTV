@@ -684,12 +684,12 @@ function SearchPageClient() {
               <div className='mb-4'>
                 <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
                   搜索结果
-                  {searchResults.length > 0 && totalSources > 0 && useFluidSearch && (
+                  {totalSources > 0 && useFluidSearch && (
                     <span className='ml-2 text-sm font-normal text-gray-500 dark:text-gray-400'>
                       {completedSources}/{totalSources}
                     </span>
                   )}
-                  {searchResults.length > 0 && isLoading && useFluidSearch && (
+                  {isLoading && useFluidSearch && (
                     <span className='ml-2 inline-block align-middle'>
                       <span className='inline-block h-3 w-3 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin'></span>
                     </span>

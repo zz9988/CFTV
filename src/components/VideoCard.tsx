@@ -51,6 +51,7 @@ export interface VideoCardProps {
 export type VideoCardHandle = {
   setEpisodes: (episodes?: number) => void;
   setSourceNames: (names?: string[]) => void;
+  setDoubanId: (id?: number) => void;
 };
 
 const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard(
@@ -89,6 +90,9 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   const [dynamicSourceNames, setDynamicSourceNames] = useState<string[] | undefined>(
     source_names
   );
+  const [dynamicDoubanId, setDynamicDoubanId] = useState<number | undefined>(
+    douban_id
+  );
 
   useEffect(() => {
     setDynamicEpisodes(episodes);
@@ -98,16 +102,21 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
     setDynamicSourceNames(source_names);
   }, [source_names]);
 
+  useEffect(() => {
+    setDynamicDoubanId(douban_id);
+  }, [douban_id]);
+
   useImperativeHandle(ref, () => ({
     setEpisodes: (eps?: number) => setDynamicEpisodes(eps),
     setSourceNames: (names?: string[]) => setDynamicSourceNames(names),
+    setDoubanId: (id?: number) => setDynamicDoubanId(id),
   }));
 
   const actualTitle = title;
   const actualPoster = poster;
   const actualSource = source;
   const actualId = id;
-  const actualDoubanId = douban_id;
+  const actualDoubanId = dynamicDoubanId;
   const actualEpisodes = dynamicEpisodes;
   const actualYear = year;
   const actualQuery = query || '';
@@ -321,7 +330,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
         showPlayButton: true,
         showHeart: true, // 移动端菜单中需要显示收藏选项
         showCheckCircle: false,
-        showDoubanLink: false,
+        showDoubanLink: true, // 移动端菜单中显示豆瓣链接
         showRating: false,
         showYear: true,
       },
@@ -663,10 +672,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           {/* 年份徽章 */}
           {config.showYear && actualYear && actualYear !== 'unknown' && actualYear.trim() !== '' && (
             <div
-              className={`absolute top-2 bg-black/50 text-white text-xs font-medium px-2 py-1 rounded backdrop-blur-sm shadow-sm transition-all duration-300 ease-out group-hover:opacity-90 ${config.showDoubanLink && actualDoubanId && actualDoubanId !== 0
-                ? 'left-2 group-hover:left-11'
-                : 'left-2'
-                }`}
+              className={`absolute top-2 bg-black/50 text-white text-xs font-medium px-2 py-1 rounded backdrop-blur-sm shadow-sm transition-all duration-300 ease-out group-hover:opacity-90 left-2`}
               style={{
                 WebkitUserSelect: 'none',
                 userSelect: 'none',

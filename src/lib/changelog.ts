@@ -11,6 +11,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.2.0",
+    date: "2025-08-22",
+    added: [
+    "视频源管理支持批量启用、禁用、删除",
+    "用户管理支持批量设置用户组",
+    "视频卡片右键/长按菜单新增新标签页播放"
+    ],
+    changed: [
+    "视频卡片移动端 hover 时仅保留播放按钮",
+    "微调管理页面 UI 和视频卡片右键/长按菜单中的收藏样式"
+    ],
+    fixed: [
+    "修复了搜索栏 enter 键自动选中第一个建议项的问题"
+    ]
+  },
+  {
     version: "3.1.2",
     date: "2025-08-22",
     added: [

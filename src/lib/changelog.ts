@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "3.2.1",
+    date: "2025-08-22",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+    "新增色色过滤分类",
+    "调整搜索建议框层级"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "3.2.0",
     date: "2025-08-22",
     added: [

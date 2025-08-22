@@ -46,6 +46,48 @@ import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 import DataMigration from '@/components/DataMigration';
 import PageLayout from '@/components/PageLayout';
 
+// 统一按钮样式系统
+const buttonStyles = {
+  // 主要操作按钮（蓝色）- 用于配置、设置、确认等
+  primary: 'px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors',
+  // 成功操作按钮（绿色）- 用于添加、启用、保存等
+  success: 'px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-lg transition-colors',
+  // 危险操作按钮（红色）- 用于删除、禁用、重置等
+  danger: 'px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-lg transition-colors',
+  // 次要操作按钮（灰色）- 用于取消、关闭等
+  secondary: 'px-3 py-1.5 text-sm font-medium bg-gray-600 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-700 text-white rounded-lg transition-colors',
+  // 警告操作按钮（黄色）- 用于批量禁用等
+  warning: 'px-3 py-1.5 text-sm font-medium bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white rounded-lg transition-colors',
+  // 小尺寸主要按钮
+  primarySmall: 'px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-md transition-colors',
+  // 小尺寸成功按钮
+  successSmall: 'px-2 py-1 text-xs font-medium bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-md transition-colors',
+  // 小尺寸危险按钮
+  dangerSmall: 'px-2 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-md transition-colors',
+  // 小尺寸次要按钮
+  secondarySmall: 'px-2 py-1 text-xs font-medium bg-gray-600 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-700 text-white rounded-md transition-colors',
+  // 小尺寸警告按钮
+  warningSmall: 'px-2 py-1 text-xs font-medium bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white rounded-md transition-colors',
+  // 圆角小按钮（用于表格操作）
+  roundedPrimary: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors',
+  roundedSuccess: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:hover:bg-green-900/60 dark:text-green-200 transition-colors',
+  roundedDanger: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-200 transition-colors',
+  roundedSecondary: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700/40 dark:hover:bg-gray-700/60 dark:text-gray-200 transition-colors',
+  roundedWarning: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/40 dark:hover:bg-yellow-900/60 dark:text-yellow-200 transition-colors',
+  roundedPurple: 'inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 dark:text-purple-200 transition-colors',
+  // 禁用状态
+  disabled: 'px-3 py-1.5 text-sm font-medium bg-gray-400 dark:bg-gray-600 cursor-not-allowed text-white rounded-lg transition-colors',
+  disabledSmall: 'px-2 py-1 text-xs font-medium bg-gray-400 dark:bg-gray-600 cursor-not-allowed text-white rounded-md transition-colors',
+  // 开关按钮样式
+  toggleOn: 'bg-green-600 dark:bg-green-600',
+  toggleOff: 'bg-gray-200 dark:bg-gray-700',
+  toggleThumb: 'bg-white',
+  toggleThumbOn: 'translate-x-6',
+  toggleThumbOff: 'translate-x-1',
+  // 快速操作按钮样式
+  quickAction: 'px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors',
+};
+
 // 通用弹窗组件
 interface AlertModalProps {
   isOpen: boolean;
@@ -130,7 +172,7 @@ const AlertModal = ({
           {showConfirm && (
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              className={`px-4 py-2 text-sm font-medium ${buttonStyles.primary}`}
             >
               确定
             </button>
@@ -706,7 +748,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 setEditingUserGroup(null);
               }
             }}
-            className='px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors'
+            className={showAddUserGroupForm ? buttonStyles.secondary : buttonStyles.primary}
           >
             {showAddUserGroupForm ? '取消' : '添加用户组'}
           </button>
@@ -746,13 +788,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
                     <button
                       onClick={() => handleStartEditUserGroup(group)}
-                      className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
+                      className={buttonStyles.roundedPrimary}
                     >
                       编辑
                     </button>
                     <button
                       onClick={() => handleDeleteUserGroup(group.name)}
-                      className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-200 transition-colors'
+                      className={buttonStyles.roundedDanger}
                     >
                       删除
                     </button>
@@ -787,7 +829,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   </span>
                   <button
                     onClick={() => setShowBatchUserGroupModal(true)}
-                    className='px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+                    className={buttonStyles.primary}
                   >
                     批量设置用户组
                   </button>
@@ -803,7 +845,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   setChangePasswordUser({ username: '', password: '' });
                 }
               }}
-              className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
+              className={showAddUserForm ? buttonStyles.secondary : buttonStyles.success}
             >
               {showAddUserForm ? '取消' : '添加用户'}
             </button>
@@ -857,7 +899,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 <button
                   onClick={handleAddUser}
                   disabled={!newUser.username || !newUser.password}
-                  className='px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+                  className={!newUser.username || !newUser.password ? buttonStyles.disabled : buttonStyles.success}
                 >
                   添加
                 </button>
@@ -895,7 +937,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
               <button
                 onClick={handleChangePassword}
                 disabled={!changePasswordUser.password}
-                className='w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+                className={`w-full sm:w-auto ${!changePasswordUser.password ? buttonStyles.disabled : buttonStyles.primary}`}
               >
                 修改密码
               </button>
@@ -904,7 +946,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   setShowChangePasswordForm(false);
                   setChangePasswordUser({ username: '', password: '' });
                 }}
-                className='w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors'
+                className={`w-full sm:w-auto ${buttonStyles.secondary}`}
               >
                 取消
               </button>
@@ -1076,7 +1118,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                   user.username === currentUsername))) && (
                                 <button
                                   onClick={() => handleConfigureUserGroup(user)}
-                                  className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
+                                  className={buttonStyles.roundedPrimary}
                                 >
                                   配置
                                 </button>
@@ -1097,7 +1139,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                   user.username === currentUsername))) && (
                                 <button
                                   onClick={() => handleConfigureUserApis(user)}
-                                  className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
+                                  className={buttonStyles.roundedPrimary}
                                 >
                                   配置
                                 </button>
@@ -1111,7 +1153,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                               onClick={() =>
                                 handleShowChangePasswordForm(user.username)
                               }
-                              className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-200 transition-colors'
+                              className={buttonStyles.roundedPrimary}
                             >
                               修改密码
                             </button>
@@ -1122,7 +1164,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                               {user.role === 'user' && (
                                 <button
                                   onClick={() => handleSetAdmin(user.username)}
-                                  className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 dark:text-purple-200 transition-colors'
+                                  className={buttonStyles.roundedPurple}
                                 >
                                   设为管理
                                 </button>
@@ -1132,7 +1174,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                   onClick={() =>
                                     handleRemoveAdmin(user.username)
                                   }
-                                  className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700/40 dark:hover:bg-gray-700/60 dark:text-gray-200 transition-colors'
+                                  className={buttonStyles.roundedSecondary}
                                 >
                                   取消管理
                                 </button>
@@ -1141,7 +1183,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                 (!user.banned ? (
                                   <button
                                     onClick={() => handleBanUser(user.username)}
-                                    className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-300 transition-colors'
+                                    className={buttonStyles.roundedDanger}
                                   >
                                     封禁
                                   </button>
@@ -1150,7 +1192,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                     onClick={() =>
                                       handleUnbanUser(user.username)
                                     }
-                                    className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:hover:bg-green-900/60 dark:text-green-300 transition-colors'
+                                    className={buttonStyles.roundedSuccess}
                                   >
                                     解封
                                   </button>
@@ -1161,7 +1203,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                           {canDeleteUser && (
                             <button
                               onClick={() => handleDeleteUser(user.username)}
-                              className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 transition-colors'
+                              className={buttonStyles.roundedDanger}
                             >
                               删除用户
                             </button>
@@ -1260,7 +1302,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 <div className='flex space-x-2'>
                   <button
                     onClick={() => setSelectedApis([])}
-                    className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                    className={buttonStyles.quickAction}
                   >
                     全不选（无限制）
                   </button>
@@ -1269,7 +1311,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                       const allApis = config?.SourceConfig?.filter(source => !source.disabled).map(s => s.key) || [];
                       setSelectedApis(allApis);
                     }}
-                    className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                    className={buttonStyles.quickAction}
                   >
                     全选
                   </button>
@@ -1289,13 +1331,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setSelectedUser(null);
                     setSelectedApis([]);
                   }}
-                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={handleSaveUserApis}
-                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
                 >
                   确认配置
                 </button>
@@ -1392,7 +1434,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   <div className='mt-4 flex space-x-2'>
                     <button
                       onClick={() => setNewUserGroup(prev => ({ ...prev, enabledApis: [] }))}
-                      className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                      className={buttonStyles.quickAction}
                     >
                       全不选（无限制）
                     </button>
@@ -1401,7 +1443,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                         const allApis = config?.SourceConfig?.filter(source => !source.disabled).map(s => s.key) || [];
                         setNewUserGroup(prev => ({ ...prev, enabledApis: allApis }));
                       }}
-                      className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                      className={buttonStyles.quickAction}
                     >
                       全选
                     </button>
@@ -1415,14 +1457,14 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                       setShowAddUserGroupForm(false);
                       setNewUserGroup({ name: '', enabledApis: [] });
                     }}
-                    className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                   >
                     取消
                   </button>
                   <button
                     onClick={handleAddUserGroup}
                     disabled={!newUserGroup.name.trim()}
-                    className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${!newUserGroup.name.trim() ? buttonStyles.disabled : buttonStyles.primary}`}
                   >
                     添加用户组
                   </button>
@@ -1504,7 +1546,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   <div className='mt-4 flex space-x-2'>
                     <button
                       onClick={() => setEditingUserGroup(prev => prev ? { ...prev, enabledApis: [] } : null)}
-                      className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                      className={buttonStyles.quickAction}
                     >
                       全不选（无限制）
                     </button>
@@ -1513,7 +1555,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                         const allApis = config?.SourceConfig?.filter(source => !source.disabled).map(s => s.key) || [];
                         setEditingUserGroup(prev => prev ? { ...prev, enabledApis: allApis } : null);
                       }}
-                      className='px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors'
+                      className={buttonStyles.quickAction}
                     >
                       全选
                     </button>
@@ -1527,13 +1569,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                       setShowEditUserGroupForm(false);
                       setEditingUserGroup(null);
                     }}
-                    className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                   >
                     取消
                   </button>
                   <button
                     onClick={handleEditUserGroup}
-                    className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
                   >
                     保存修改
                   </button>
@@ -1623,13 +1665,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setSelectedUserForGroup(null);
                     setSelectedUserGroups([]);
                   }}
-                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={handleSaveUserGroups}
-                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
                 >
                   确认配置
                 </button>
@@ -1722,13 +1764,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowDeleteUserGroupModal(false);
                     setDeletingUserGroup(null);
                   }}
-                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={handleConfirmDeleteUserGroup}
-                  className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.danger}`}
                 >
                   确认删除
                 </button>
@@ -1786,13 +1828,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                       setShowDeleteUserModal(false);
                       setDeletingUser(null);
                     }}
-                    className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                   >
                     取消
                   </button>
                   <button
                     onClick={handleConfirmDeleteUser}
-                    className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.danger}`}
                   >
                     确认删除
                   </button>
@@ -1873,13 +1915,13 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowBatchUserGroupModal(false);
                     setSelectedUserGroup('');
                   }}
-                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={() => handleBatchSetUserGroup(selectedUserGroup)}
-                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
                 >
                   确认设置
                 </button>
@@ -2284,8 +2326,8 @@ const VideoSourceConfig = ({
           <button
             onClick={() => handleToggleEnable(source.key)}
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${!source.disabled
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60'
-              : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60'
+              ? buttonStyles.roundedDanger
+              : buttonStyles.roundedSuccess
               } transition-colors`}
           >
             {!source.disabled ? '禁用' : '启用'}
@@ -2293,7 +2335,7 @@ const VideoSourceConfig = ({
           {source.from !== 'config' && (
             <button
               onClick={() => handleDelete(source.key)}
-              className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700/40 dark:hover:bg-gray-700/60 dark:text-gray-200 transition-colors'
+              className={buttonStyles.roundedSecondary}
             >
               删除
             </button>
@@ -2399,19 +2441,19 @@ const VideoSourceConfig = ({
                 </span>
                 <button
                   onClick={() => handleBatchOperation('batch_enable')}
-                  className='px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                  className={`px-3 py-1 text-sm ${buttonStyles.success}`}
                 >
                   批量启用
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_disable')}
-                  className='px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors'
+                  className={`px-3 py-1 text-sm ${buttonStyles.warning}`}
                 >
                   批量禁用
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_delete')}
-                  className='px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors'
+                  className={`px-3 py-1 text-sm ${buttonStyles.danger}`}
                 >
                   批量删除
                 </button>
@@ -2423,8 +2465,8 @@ const VideoSourceConfig = ({
             onClick={() => setShowValidationModal(true)}
             disabled={isValidating}
             className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center space-x-1 ${isValidating
-              ? 'bg-gray-400 cursor-not-allowed text-gray-200'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              ? buttonStyles.disabled
+              : buttonStyles.primary
               }`}
           >
             {isValidating ? (
@@ -2438,7 +2480,7 @@ const VideoSourceConfig = ({
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
+            className={showAddForm ? buttonStyles.secondary : buttonStyles.success}
           >
             {showAddForm ? '取消' : '添加视频源'}
           </button>
@@ -2489,7 +2531,7 @@ const VideoSourceConfig = ({
             <button
               onClick={handleAddSource}
               disabled={!newSource.name || !newSource.key || !newSource.api}
-              className='w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+              className={`w-full sm:w-auto px-4 py-2 ${!newSource.name || !newSource.key || !newSource.api ? buttonStyles.disabled : buttonStyles.success}`}
             >
               添加
             </button>
@@ -2562,7 +2604,7 @@ const VideoSourceConfig = ({
         <div className='flex justify-end'>
           <button
             onClick={handleSaveOrder}
-            className='px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+            className={`px-3 py-1.5 text-sm ${buttonStyles.primary}`}
           >
             保存排序
           </button>
@@ -2598,7 +2640,7 @@ const VideoSourceConfig = ({
                 <button
                   onClick={handleValidateSources}
                   disabled={isValidating || !searchKeyword.trim()}
-                  className='px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+                  className={`px-4 py-2 ${isValidating || !searchKeyword.trim() ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
                   {isValidating ? `检测中... (${validationResults.length}/${sources.length})` : '开始检测'}
                 </button>
@@ -2649,13 +2691,13 @@ const VideoSourceConfig = ({
               <div className='flex justify-end space-x-3'>
                 <button
                   onClick={confirmModal.onCancel}
-                  className='px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-4 py-2 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={confirmModal.onConfirm}
-                  className='px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                  className={`px-4 py-2 text-sm font-medium ${buttonStyles.primary}`}
                 >
                   确认
                 </button>
@@ -2855,8 +2897,8 @@ const CategoryConfig = ({
               handleToggleEnable(category.query, category.type)
             }
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${!category.disabled
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60'
-              : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60'
+              ? buttonStyles.roundedDanger
+              : buttonStyles.roundedSuccess
               } transition-colors`}
           >
             {!category.disabled ? '禁用' : '启用'}
@@ -2864,7 +2906,7 @@ const CategoryConfig = ({
           {category.from !== 'config' && (
             <button
               onClick={() => handleDelete(category.query, category.type)}
-              className='inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700/40 dark:hover:bg-gray-700/60 dark:text-gray-200 transition-colors'
+              className={buttonStyles.roundedSecondary}
             >
               删除
             </button>
@@ -2891,7 +2933,7 @@ const CategoryConfig = ({
         </h4>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-3 py-1 text-sm rounded-lg transition-colors bg-green-600 hover:bg-green-700 text-white"
+          className={`px-3 py-1 text-sm rounded-lg transition-colors ${showAddForm ? buttonStyles.secondary : buttonStyles.success}`}
         >
           {showAddForm ? '取消' : '添加分类'}
         </button>
@@ -2936,7 +2978,7 @@ const CategoryConfig = ({
             <button
               onClick={handleAddCategory}
               disabled={!newCategory.name || !newCategory.query}
-              className='w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+              className={`w-full sm:w-auto px-4 py-2 ${!newCategory.name || !newCategory.query ? buttonStyles.disabled : buttonStyles.success}`}
             >
               添加
             </button>
@@ -2996,7 +3038,7 @@ const CategoryConfig = ({
         <div className='flex justify-end'>
           <button
             onClick={handleSaveOrder}
-            className='px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+            className={`px-3 py-1.5 text-sm ${buttonStyles.primary}`}
           >
             保存排序
           </button>
@@ -3156,8 +3198,8 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               onClick={handleFetchConfig}
               disabled={fetching || !subscriptionUrl.trim()}
               className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${fetching || !subscriptionUrl.trim()
-                ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
-                : 'bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
+                ? buttonStyles.disabled
+                : buttonStyles.success
                 }`}
             >
               {fetching ? (
@@ -3186,14 +3228,14 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               onClick={() => setAutoUpdate(!autoUpdate)}
               disabled={false}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
-                ? 'bg-green-600'
-                : 'bg-gray-200 dark:bg-gray-700'
+                ? buttonStyles.toggleOn
+                : buttonStyles.toggleOff
                 }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoUpdate
-                  ? 'translate-x-6'
-                  : 'translate-x-1'
+                className={`inline-block h-4 w-4 transform rounded-full ${buttonStyles.toggleThumb} transition-transform ${autoUpdate
+                  ? buttonStyles.toggleThumbOn
+                  : buttonStyles.toggleThumbOff
                   }`}
               />
             </button>
@@ -3227,8 +3269,8 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             onClick={handleSave}
             disabled={saving}
             className={`px-4 py-2 rounded-lg transition-colors ${saving
-              ? 'bg-gray-400 cursor-not-allowed text-white'
-              : 'bg-green-600 hover:bg-green-700 text-white'
+              ? buttonStyles.disabled
+              : buttonStyles.success
               }`}
           >
             {saving ? '保存中…' : '保存'}
@@ -3736,14 +3778,14 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               }))
             }
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.DisableYellowFilter
-              ? 'bg-green-600'
-              : 'bg-gray-200 dark:bg-gray-700'
+              ? buttonStyles.toggleOn
+              : buttonStyles.toggleOff
               }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${siteSettings.DisableYellowFilter
-                ? 'translate-x-6'
-                : 'translate-x-1'
+              className={`inline-block h-4 w-4 transform rounded-full ${buttonStyles.toggleThumb} transition-transform ${siteSettings.DisableYellowFilter
+                ? buttonStyles.toggleThumbOn
+                : buttonStyles.toggleThumbOff
                 }`}
             />
           </button>
@@ -3770,14 +3812,14 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               }))
             }
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.FluidSearch
-              ? 'bg-green-600'
-              : 'bg-gray-200 dark:bg-gray-700'
+              ? buttonStyles.toggleOn
+              : buttonStyles.toggleOff
               }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${siteSettings.FluidSearch
-                ? 'translate-x-6'
-                : 'translate-x-1'
+              className={`inline-block h-4 w-4 transform rounded-full ${buttonStyles.toggleThumb} transition-transform ${siteSettings.FluidSearch
+                ? buttonStyles.toggleThumbOn
+                : buttonStyles.toggleThumbOff
                 }`}
             />
           </button>
@@ -3794,9 +3836,9 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           onClick={handleSave}
           disabled={saving}
           className={`px-4 py-2 ${saving
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-green-600 hover:bg-green-700'
-            } text-white rounded-lg transition-colors`}
+            ? buttonStyles.disabled
+            : buttonStyles.success
+            } rounded-lg transition-colors`}
         >
           {saving ? '保存中…' : '保存'}
         </button>
@@ -3932,7 +3974,7 @@ function AdminPageClient() {
             {config && role === 'owner' && (
               <button
                 onClick={handleResetConfig}
-                className='px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md transition-colors'
+                className={`px-3 py-1 text-xs rounded-md transition-colors ${buttonStyles.dangerSmall}`}
               >
                 重置配置
               </button>
@@ -4085,13 +4127,13 @@ function AdminPageClient() {
               <div className='flex justify-end space-x-3'>
                 <button
                   onClick={() => setShowResetConfigModal(false)}
-                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.secondary}`}
                 >
                   取消
                 </button>
                 <button
                   onClick={handleConfirmResetConfig}
-                  className='px-6 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors'
+                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.danger}`}
                 >
                   确认重置
                 </button>

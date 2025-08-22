@@ -376,7 +376,11 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           actions.push({
             id: 'favorite',
             label: currentFavorited ? '取消收藏' : '添加收藏',
-            icon: <Heart size={20} />,
+            icon: currentFavorited ? (
+              <Heart size={20} className="fill-red-600 stroke-red-600" />
+            ) : (
+              <Heart size={20} className="fill-transparent stroke-red-500" />
+            ),
             onClick: () => {
               const mockEvent = {
                 preventDefault: () => { },
@@ -401,7 +405,11 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
         actions.push({
           id: 'favorite',
           label: currentFavorited ? '取消收藏' : '添加收藏',
-          icon: <Heart size={20} />,
+          icon: currentFavorited ? (
+            <Heart size={20} className="fill-red-600 stroke-red-600" />
+          ) : (
+            <Heart size={20} className="fill-transparent stroke-red-500" />
+          ),
           onClick: () => {
             const mockEvent = {
               preventDefault: () => { },
@@ -555,7 +563,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
 
           {/* 悬浮遮罩 */}
           <div
-            className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 ease-in-out opacity-0 sm:group-hover:opacity-100'
+            className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 ease-in-out opacity-0 group-hover:opacity-100'
             style={{
               WebkitUserSelect: 'none',
               userSelect: 'none',
@@ -630,7 +638,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                   }}
                 />
               )}
-              {config.showHeart && (
+              {config.showHeart && from !== 'search' && (
                 <Heart
                   onClick={handleToggleFavorite}
                   size={20}
@@ -721,7 +729,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
               target='_blank'
               rel='noopener noreferrer'
               onClick={(e) => e.stopPropagation()}
-              className='absolute top-2 left-2 opacity-0 -translate-x-2 transition-all duration-300 ease-in-out delay-100 group-hover:opacity-100 group-hover:translate-x-0'
+              className='absolute top-2 left-2 opacity-0 -translate-x-2 transition-all duration-300 ease-in-out delay-100 sm:group-hover:opacity-100 sm:group-hover:translate-x-0'
               style={{
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
@@ -764,7 +772,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
 
             return (
               <div
-                className='absolute bottom-2 right-2 opacity-0 transition-all duration-300 ease-in-out delay-75 group-hover:opacity-100'
+                className='absolute bottom-2 right-2 opacity-0 transition-all duration-300 ease-in-out delay-75 sm:group-hover:opacity-100'
                 style={{
                   WebkitUserSelect: 'none',
                   userSelect: 'none',

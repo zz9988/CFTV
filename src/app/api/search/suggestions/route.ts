@@ -17,16 +17,6 @@ export async function GET(request: NextRequest) {
     }
 
     const config = await getConfig();
-    if (config.UserConfig.Users) {
-      // 检查用户是否被封禁
-      const user = config.UserConfig.Users.find(
-        (u) => u.username === authInfo.username
-      );
-      if (user && user.banned) {
-        return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
-      }
-    }
-
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q')?.trim();
 

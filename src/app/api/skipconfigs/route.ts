@@ -17,12 +17,15 @@ export async function GET(request: NextRequest) {
     }
 
     const config = await getConfig();
-    if (config.UserConfig.Users) {
-      // 检查用户是否被封禁
+    if (authInfo.username !== process.env.ADMIN_USERNAME) {
+      // 非站长，检查用户存在或被封禁
       const user = config.UserConfig.Users.find(
         (u) => u.username === authInfo.username
       );
-      if (user && user.banned) {
+      if (!user) {
+        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
+      }
+      if (user.banned) {
         return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
       }
     }
@@ -57,12 +60,15 @@ export async function POST(request: NextRequest) {
     }
 
     const adminConfig = await getConfig();
-    if (adminConfig.UserConfig.Users) {
-      // 检查用户是否被封禁
+    if (authInfo.username !== process.env.ADMIN_USERNAME) {
+      // 非站长，检查用户存在或被封禁
       const user = adminConfig.UserConfig.Users.find(
         (u) => u.username === authInfo.username
       );
-      if (user && user.banned) {
+      if (!user) {
+        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
+      }
+      if (user.banned) {
         return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
       }
     }
@@ -107,12 +113,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     const adminConfig = await getConfig();
-    if (adminConfig.UserConfig.Users) {
-      // 检查用户是否被封禁
+    if (authInfo.username !== process.env.ADMIN_USERNAME) {
+      // 非站长，检查用户存在或被封禁
       const user = adminConfig.UserConfig.Users.find(
         (u) => u.username === authInfo.username
       );
-      if (user && user.banned) {
+      if (!user) {
+        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
+      }
+      if (user.banned) {
         return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
       }
     }

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion,react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion,react-hooks/exhaustive-deps,@typescript-eslint/no-empty-function */
 
 'use client';
 
@@ -37,7 +37,7 @@ import {
   Video,
 } from 'lucide-react';
 import { GripVertical } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AdminConfig, AdminConfigResult } from '@/lib/admin.types';
@@ -301,6 +301,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     tags?: string[];
   } | null>(null);
   const [selectedUserGroups, setSelectedUserGroups] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [showBatchUserGroupModal, setShowBatchUserGroupModal] = useState(false);
+  const [selectedUserGroup, setSelectedUserGroup] = useState<string>('');
   const [showDeleteUserGroupModal, setShowDeleteUserGroupModal] = useState(false);
   const [deletingUserGroup, setDeletingUserGroup] = useState<{
     name: string;
@@ -311,6 +314,17 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
 
   // 当前登录用户名
   const currentUsername = getAuthInfoFromBrowserCookie()?.username || null;
+
+  // 使用 useMemo 计算全选状态，避免每次渲染都重新计算
+  const selectAllUsers = useMemo(() => {
+    const selectableUserCount = config?.UserConfig?.Users?.filter(user =>
+    (role === 'owner' ||
+      (role === 'admin' &&
+        (user.role === 'user' ||
+          user.username === currentUsername)))
+    ).length || 0;
+    return selectedUsers.size === selectableUserCount && selectedUsers.size > 0;
+  }, [selectedUsers.size, config?.UserConfig?.Users, role, currentUsername]);
 
   // 获取用户组列表
   const userGroups = config?.UserConfig?.Tags || [];
@@ -498,6 +512,69 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     }
   };
 
+  // 处理用户选择
+  const handleSelectUser = useCallback((username: string, checked: boolean) => {
+    setSelectedUsers(prev => {
+      const newSelectedUsers = new Set(prev);
+      if (checked) {
+        newSelectedUsers.add(username);
+      } else {
+        newSelectedUsers.delete(username);
+      }
+      return newSelectedUsers;
+    });
+  }, []);
+
+  const handleSelectAllUsers = useCallback((checked: boolean) => {
+    if (checked) {
+      // 只选择自己有权限操作的用户
+      const selectableUsernames = config?.UserConfig?.Users?.filter(user =>
+      (role === 'owner' ||
+        (role === 'admin' &&
+          (user.role === 'user' ||
+            user.username === currentUsername)))
+      ).map(u => u.username) || [];
+      setSelectedUsers(new Set(selectableUsernames));
+    } else {
+      setSelectedUsers(new Set());
+    }
+  }, [config?.UserConfig?.Users, role, currentUsername]);
+
+  // 批量设置用户组
+  const handleBatchSetUserGroup = async (userGroup: string) => {
+    if (selectedUsers.size === 0) return;
+
+    try {
+      const res = await fetch('/api/admin/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'batchUpdateUserGroups',
+          usernames: Array.from(selectedUsers),
+          userGroups: userGroup === '' ? [] : [userGroup],
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `操作失败: ${res.status}`);
+      }
+
+      const userCount = selectedUsers.size;
+      setSelectedUsers(new Set());
+      setShowBatchUserGroupModal(false);
+      setSelectedUserGroup('');
+      showSuccess(`已为 ${userCount} 个用户设置用户组: ${userGroup}`, showAlert);
+
+      // 刷新配置
+      await refreshConfig();
+    } catch (err) {
+      showError('批量设置用户组失败', showAlert);
+    }
+  };
+
+
+
   // 提取URL域名的辅助函数
   const extractDomain = (url: string): string => {
     try {
@@ -636,9 +713,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         </div>
 
         {/* 用户组列表 */}
-        <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[20rem] overflow-y-auto overflow-x-auto'>
+        <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[20rem] overflow-y-auto overflow-x-auto relative'>
           <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
-            <thead className='bg-gray-50 dark:bg-gray-900'>
+            <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0 z-10'>
               <tr>
                 <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                   用户组名称
@@ -700,18 +777,37 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
             用户列表
           </h4>
-          <button
-            onClick={() => {
-              setShowAddUserForm(!showAddUserForm);
-              if (showChangePasswordForm) {
-                setShowChangePasswordForm(false);
-                setChangePasswordUser({ username: '', password: '' });
-              }
-            }}
-            className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
-          >
-            {showAddUserForm ? '取消' : '添加用户'}
-          </button>
+          <div className='flex items-center space-x-2'>
+            {/* 批量操作按钮 */}
+            {selectedUsers.size > 0 && (
+              <>
+                <div className='flex items-center space-x-3'>
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
+                    已选择 {selectedUsers.size} 个用户
+                  </span>
+                  <button
+                    onClick={() => setShowBatchUserGroupModal(true)}
+                    className='px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+                  >
+                    批量设置用户组
+                  </button>
+                </div>
+                <div className='w-px h-6 bg-gray-300 dark:bg-gray-600'></div>
+              </>
+            )}
+            <button
+              onClick={() => {
+                setShowAddUserForm(!showAddUserForm);
+                if (showChangePasswordForm) {
+                  setShowChangePasswordForm(false);
+                  setChangePasswordUser({ username: '', password: '' });
+                }
+              }}
+              className='px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors'
+            >
+              {showAddUserForm ? '取消' : '添加用户'}
+            </button>
+          </div>
         </div>
 
         {/* 添加用户表单 */}
@@ -817,10 +913,33 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         )}
 
         {/* 用户列表 */}
-        <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto'>
+        <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto relative' data-table="user-list">
           <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
-            <thead className='bg-gray-50 dark:bg-gray-900'>
+            <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0 z-10'>
               <tr>
+                <th className='w-4' />
+                <th className='w-10 px-1 py-3 text-center'>
+                  {(() => {
+                    // 检查是否有权限操作任何用户
+                    const hasAnyPermission = config?.UserConfig?.Users?.some(user =>
+                    (role === 'owner' ||
+                      (role === 'admin' &&
+                        (user.role === 'user' ||
+                          user.username === currentUsername)))
+                    );
+
+                    return hasAnyPermission ? (
+                      <input
+                        type='checkbox'
+                        checked={selectAllUsers}
+                        onChange={(e) => handleSelectAllUsers(e.target.checked)}
+                        className='w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
+                      />
+                    ) : (
+                      <div className='w-4 h-4' />
+                    );
+                  })()}
+                </th>
                 <th
                   scope='col'
                   className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'
@@ -898,6 +1017,22 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                         key={user.username}
                         className='hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
                       >
+                        <td className='w-4' />
+                        <td className='w-10 px-1 py-3 text-center'>
+                          {(role === 'owner' ||
+                            (role === 'admin' &&
+                              (user.role === 'user' ||
+                                user.username === currentUsername))) ? (
+                            <input
+                              type='checkbox'
+                              checked={selectedUsers.has(user.username)}
+                              onChange={(e) => handleSelectUser(user.username, e.target.checked)}
+                              className='w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
+                            />
+                          ) : (
+                            <div className='w-4 h-4' />
+                          )}
+                        </td>
                         <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100'>
                           {user.username}
                         </td>
@@ -1669,6 +1804,92 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         document.body
       )}
 
+      {/* 批量设置用户组弹窗 */}
+      {showBatchUserGroupModal && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4' onClick={() => {
+          setShowBatchUserGroupModal(false);
+          setSelectedUserGroup('');
+        }}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full' onClick={(e) => e.stopPropagation()}>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-6'>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
+                  批量设置用户组
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowBatchUserGroupModal(false);
+                    setSelectedUserGroup('');
+                  }}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4'>
+                  <div className='flex items-center space-x-2 mb-2'>
+                    <svg className='w-5 h-5 text-blue-600 dark:text-blue-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                    </svg>
+                    <span className='text-sm font-medium text-blue-800 dark:text-blue-300'>
+                      批量操作说明
+                    </span>
+                  </div>
+                  <p className='text-sm text-blue-700 dark:text-blue-400'>
+                    将为选中的 <strong>{selectedUsers.size} 个用户</strong> 设置用户组，选择"无用户组"为无限制
+                  </p>
+                </div>
+
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    选择用户组：
+                  </label>
+                  <select
+                    onChange={(e) => setSelectedUserGroup(e.target.value)}
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors'
+                    value={selectedUserGroup}
+                  >
+                    <option value=''>无用户组（无限制）</option>
+                    {userGroups.map((group) => (
+                      <option key={group.name} value={group.name}>
+                        {group.name} {group.enabledApis && group.enabledApis.length > 0 ? `(${group.enabledApis.length} 个源)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                    选择"无用户组"为无限制，选择特定用户组将限制用户只能访问该用户组允许的采集源
+                  </p>
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={() => {
+                    setShowBatchUserGroupModal(false);
+                    setSelectedUserGroup('');
+                  }}
+                  className='px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => handleBatchSetUserGroup(selectedUserGroup)}
+                  className='px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                >
+                  确认设置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* 通用弹窗组件 */}
       <AlertModal
         isOpen={alertModal.isOpen}
@@ -1706,6 +1927,29 @@ const VideoSourceConfig = ({
     from: 'config',
   });
 
+  // 批量操作相关状态
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+
+  // 使用 useMemo 计算全选状态，避免每次渲染都重新计算
+  const selectAll = useMemo(() => {
+    return selectedSources.size === sources.length && selectedSources.size > 0;
+  }, [selectedSources.size, sources.length]);
+
+  // 确认弹窗状态
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+    onCancel: () => { }
+  });
+
   // 有效性检测相关状态
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -1739,6 +1983,8 @@ const VideoSourceConfig = ({
       setSources(config.SourceConfig);
       // 进入时重置 orderChanged
       setOrderChanged(false);
+      // 重置选择状态
+      setSelectedSources(new Set());
     }
   }, [config]);
 
@@ -1981,6 +2227,14 @@ const VideoSourceConfig = ({
         >
           <GripVertical size={16} />
         </td>
+        <td className='px-2 py-4 text-center'>
+          <input
+            type='checkbox'
+            checked={selectedSources.has(source.key)}
+            onChange={(e) => handleSelectSource(source.key, e.target.checked)}
+            className='w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
+          />
+        </td>
         <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100'>
           {source.name}
         </td>
@@ -2049,6 +2303,77 @@ const VideoSourceConfig = ({
     );
   };
 
+  // 全选/取消全选
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      const allKeys = sources.map(s => s.key);
+      setSelectedSources(new Set(allKeys));
+    } else {
+      setSelectedSources(new Set());
+    }
+  }, [sources]);
+
+  // 单个选择
+  const handleSelectSource = useCallback((key: string, checked: boolean) => {
+    setSelectedSources(prev => {
+      const newSelected = new Set(prev);
+      if (checked) {
+        newSelected.add(key);
+      } else {
+        newSelected.delete(key);
+      }
+      return newSelected;
+    });
+  }, []);
+
+  // 批量操作
+  const handleBatchOperation = async (action: 'batch_enable' | 'batch_disable' | 'batch_delete') => {
+    if (selectedSources.size === 0) {
+      showAlert({ type: 'warning', title: '请先选择要操作的视频源', message: '请选择至少一个视频源' });
+      return;
+    }
+
+    const keys = Array.from(selectedSources);
+    let confirmMessage = '';
+    let actionName = '';
+
+    switch (action) {
+      case 'batch_enable':
+        confirmMessage = `确定要启用选中的 ${keys.length} 个视频源吗？`;
+        actionName = '批量启用';
+        break;
+      case 'batch_disable':
+        confirmMessage = `确定要禁用选中的 ${keys.length} 个视频源吗？`;
+        actionName = '批量禁用';
+        break;
+      case 'batch_delete':
+        confirmMessage = `确定要删除选中的 ${keys.length} 个视频源吗？此操作不可恢复！`;
+        actionName = '批量删除';
+        break;
+    }
+
+    // 显示确认弹窗
+    setConfirmModal({
+      isOpen: true,
+      title: '确认操作',
+      message: confirmMessage,
+      onConfirm: async () => {
+        try {
+          await callSourceApi({ action, keys });
+          showAlert({ type: 'success', title: `${actionName}成功`, message: `${actionName}了 ${keys.length} 个视频源`, timer: 2000 });
+          // 重置选择状态
+          setSelectedSources(new Set());
+        } catch (err) {
+          showAlert({ type: 'error', title: `${actionName}失败`, message: err instanceof Error ? err.message : '操作失败' });
+        }
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => { }, onCancel: () => { } });
+      },
+      onCancel: () => {
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => { }, onCancel: () => { } });
+      }
+    });
+  };
+
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
@@ -2065,6 +2390,35 @@ const VideoSourceConfig = ({
           视频源列表
         </h4>
         <div className='flex items-center space-x-2'>
+          {/* 批量操作按钮 */}
+          {selectedSources.size > 0 && (
+            <>
+              <div className='flex items-center space-x-3'>
+                <span className='text-sm text-gray-600 dark:text-gray-400'>
+                  已选择 {selectedSources.size} 个视频源
+                </span>
+                <button
+                  onClick={() => handleBatchOperation('batch_enable')}
+                  className='px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                >
+                  批量启用
+                </button>
+                <button
+                  onClick={() => handleBatchOperation('batch_disable')}
+                  className='px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors'
+                >
+                  批量禁用
+                </button>
+                <button
+                  onClick={() => handleBatchOperation('batch_delete')}
+                  className='px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors'
+                >
+                  批量删除
+                </button>
+              </div>
+              <div className='w-px h-6 bg-gray-300 dark:bg-gray-600'></div>
+            </>
+          )}
           <button
             onClick={() => setShowValidationModal(true)}
             disabled={isValidating}
@@ -2143,12 +2497,22 @@ const VideoSourceConfig = ({
         </div>
       )}
 
+
+
       {/* 视频源表格 */}
-      <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto'>
+      <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto relative' data-table="source-list">
         <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
-          <thead className='bg-gray-50 dark:bg-gray-900'>
+          <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0 z-10'>
             <tr>
               <th className='w-8' />
+              <th className='w-12 px-2 py-3 text-center'>
+                <input
+                  type='checkbox'
+                  checked={selectAll}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className='w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600'
+                />
+              </th>
               <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 名称
               </th>
@@ -2255,6 +2619,52 @@ const VideoSourceConfig = ({
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
       />
+
+      {/* 批量操作确认弹窗 */}
+      {confirmModal.isOpen && createPortal(
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4' onClick={confirmModal.onCancel}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full' onClick={(e) => e.stopPropagation()}>
+            <div className='p-6'>
+              <div className='flex items-center justify-between mb-4'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100'>
+                  {confirmModal.title}
+                </h3>
+                <button
+                  onClick={confirmModal.onCancel}
+                  className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                >
+                  <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+
+              <div className='mb-6'>
+                <p className='text-sm text-gray-600 dark:text-gray-400'>
+                  {confirmModal.message}
+                </p>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={confirmModal.onCancel}
+                  className='px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className='px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
+                >
+                  确认
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
@@ -2535,9 +2945,9 @@ const CategoryConfig = ({
       )}
 
       {/* 分类表格 */}
-      <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto'>
+      <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto relative'>
         <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
-          <thead className='bg-gray-50 dark:bg-gray-900'>
+          <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0 z-10'>
             <tr>
               <th className='w-8' />
               <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>

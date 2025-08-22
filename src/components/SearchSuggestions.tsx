@@ -7,6 +7,7 @@ interface SearchSuggestionsProps {
   isVisible: boolean;
   onSelect: (suggestion: string) => void;
   onClose: () => void;
+  onEnterKey: () => void; // 新增：处理回车键的回调
 }
 
 interface SuggestionItem {
@@ -20,6 +21,7 @@ export default function SearchSuggestions({
   isVisible,
   onSelect,
   onClose,
+  onEnterKey,
 }: SearchSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,26 @@ export default function SearchSuggestions({
 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isVisible, onClose]);
+
+  // 处理键盘事件，特别是回车键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && isVisible) {
+        // 阻止默认行为，避免浏览器自动选择建议
+        e.preventDefault();
+        e.stopPropagation();
+        // 关闭搜索建议并触发搜索
+        onClose();
+        onEnterKey();
+      }
+    };
+
+    if (isVisible) {
+      document.addEventListener('keydown', handleKeyDown, true);
+    }
+
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [isVisible, onClose, onEnterKey]);
 
   if (!isVisible || suggestions.length === 0) {
     return null;

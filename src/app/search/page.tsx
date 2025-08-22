@@ -658,6 +658,19 @@ function SearchPageClient() {
                 isVisible={showSuggestions}
                 onSelect={handleSuggestionSelect}
                 onClose={() => setShowSuggestions(false)}
+                onEnterKey={() => {
+                  // 当用户按回车键时，使用搜索框的实际内容进行搜索
+                  const trimmed = searchQuery.trim().replace(/\s+/g, ' ');
+                  if (!trimmed) return;
+
+                  // 回显搜索框
+                  setSearchQuery(trimmed);
+                  setIsLoading(true);
+                  setShowResults(true);
+                  setShowSuggestions(false);
+
+                  router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+                }}
               />
             </div>
           </form>

@@ -2,10 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { AdminConfig } from '@/lib/admin.types';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
-import { AdminConfig } from '@/lib/admin.types';
 import { yellowWords } from '@/lib/yellow';
 
 export const runtime = 'nodejs';

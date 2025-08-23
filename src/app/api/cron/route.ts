@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConfig, refineConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 import { fetchVideoDetail } from '@/lib/fetchVideoDetail';
+import { refreshLiveChannels } from '@/lib/live';
 import { SearchResult } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -358,7 +359,23 @@ async function cronJob() {
 
   // 执行其他定时任务
   await refreshConfig();
+  await refreshAllLiveChannels();
   await refreshRecordAndFavorites();
+}
+
+async function refreshAllLiveChannels() {
+  const config = await getConfig();
+  for (const liveInfo of config.LiveConfig || []) {
+    if (liveInfo.disabled) {
+      continue;
+    }
+    try {
+      const nums = await refreshLiveChannels(liveInfo);
+      liveInfo.channelNumber = nums;
+    } catch (error) {
+      console.error('刷新直播源失败:', error);
+    }
+  }
 }
 
 async function refreshConfig() {

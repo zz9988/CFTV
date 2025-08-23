@@ -376,6 +376,7 @@ async function refreshAllLiveChannels() {
       console.error('刷新直播源失败:', error);
     }
   }
+  await db.saveAdminConfig(config);
 }
 
 async function refreshConfig() {

@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.0.0",
+    date: "2025-08-24",
+    added: [
+    "增加 iptv 订阅和播放功能"
+    ],
+    changed: [
+    "搜索页面视频卡片移动端/右键菜单添加豆瓣链接",
+    "搜索建议遵循色情过滤"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "3.2.1",
     date: "2025-08-22",
     added: [

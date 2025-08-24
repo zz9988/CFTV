@@ -228,6 +228,33 @@ const showSuccess = (message: string, showAlert?: (config: any) => void) => {
   }
 };
 
+// 通用加载状态管理系统
+interface LoadingState {
+  [key: string]: boolean;
+}
+
+const useLoadingState = () => {
+  const [loadingStates, setLoadingStates] = useState<LoadingState>({});
+
+  const setLoading = (key: string, loading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: loading }));
+  };
+
+  const isLoading = (key: string) => loadingStates[key] || false;
+
+  const withLoading = async (key: string, operation: () => Promise<any>): Promise<any> => {
+    setLoading(key, true);
+    try {
+      const result = await operation();
+      return result;
+    } finally {
+      setLoading(key, false);
+    }
+  };
+
+  return { loadingStates, setLoading, isLoading, withLoading };
+};
+
 // 新增站点配置类型
 interface SiteConfig {
   SiteName: string;
@@ -320,6 +347,7 @@ interface UserConfigProps {
 
 const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [showAddUserGroupForm, setShowAddUserGroupForm] = useState(false);
@@ -390,37 +418,40 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     groupName: string,
     enabledApis?: string[]
   ) => {
-    try {
-      const res = await fetch('/api/admin/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'userGroup',
-          groupAction: action,
-          groupName,
-          enabledApis,
-        }),
-      });
+    return withLoading(`userGroup_${action}_${groupName}`, async () => {
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'userGroup',
+            groupAction: action,
+            groupName,
+            enabledApis,
+          }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `操作失败: ${res.status}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `操作失败: ${res.status}`);
+        }
+
+        await refreshConfig();
+
+        if (action === 'add') {
+          setNewUserGroup({ name: '', enabledApis: [] });
+          setShowAddUserGroupForm(false);
+        } else if (action === 'edit') {
+          setEditingUserGroup(null);
+          setShowEditUserGroupForm(false);
+        }
+
+        showSuccess(action === 'add' ? '用户组添加成功' : action === 'edit' ? '用户组更新成功' : '用户组删除成功', showAlert);
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '操作失败', showAlert);
+        throw err;
       }
-
-      await refreshConfig();
-
-      if (action === 'add') {
-        setNewUserGroup({ name: '', enabledApis: [] });
-        setShowAddUserGroupForm(false);
-      } else if (action === 'edit') {
-        setEditingUserGroup(null);
-        setShowEditUserGroupForm(false);
-      }
-
-      showSuccess(action === 'add' ? '用户组添加成功' : action === 'edit' ? '用户组更新成功' : '用户组删除成功', showAlert);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败', showAlert);
-    }
+    });
   };
 
   const handleAddUserGroup = () => {
@@ -466,61 +497,68 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
 
   // 为用户分配用户组
   const handleAssignUserGroup = async (username: string, userGroups: string[]) => {
-    try {
-      const res = await fetch('/api/admin/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetUsername: username,
-          action: 'updateUserGroups',
-          userGroups,
-        }),
-      });
+    return withLoading(`assignUserGroup_${username}`, async () => {
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUsername: username,
+            action: 'updateUserGroups',
+            userGroups,
+          }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `操作失败: ${res.status}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `操作失败: ${res.status}`);
+        }
+
+        await refreshConfig();
+        showSuccess('用户组分配成功', showAlert);
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '操作失败', showAlert);
+        throw err;
       }
-
-      await refreshConfig();
-      showSuccess('用户组分配成功', showAlert);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败', showAlert);
-    }
+    });
   };
 
   const handleBanUser = async (uname: string) => {
-    await handleUserAction('ban', uname);
+    await withLoading(`banUser_${uname}`, () => handleUserAction('ban', uname));
   };
 
   const handleUnbanUser = async (uname: string) => {
-    await handleUserAction('unban', uname);
+    await withLoading(`unbanUser_${uname}`, () => handleUserAction('unban', uname));
   };
 
   const handleSetAdmin = async (uname: string) => {
-    await handleUserAction('setAdmin', uname);
+    await withLoading(`setAdmin_${uname}`, () => handleUserAction('setAdmin', uname));
   };
 
   const handleRemoveAdmin = async (uname: string) => {
-    await handleUserAction('cancelAdmin', uname);
+    await withLoading(`removeAdmin_${uname}`, () => handleUserAction('cancelAdmin', uname));
   };
 
   const handleAddUser = async () => {
     if (!newUser.username || !newUser.password) return;
-    await handleUserAction('add', newUser.username, newUser.password, newUser.userGroup);
-    setNewUser({ username: '', password: '', userGroup: '' });
-    setShowAddUserForm(false);
+    await withLoading('addUser', async () => {
+      await handleUserAction('add', newUser.username, newUser.password, newUser.userGroup);
+      setNewUser({ username: '', password: '', userGroup: '' });
+      setShowAddUserForm(false);
+    });
   };
 
   const handleChangePassword = async () => {
     if (!changePasswordUser.username || !changePasswordUser.password) return;
-    await handleUserAction(
-      'changePassword',
-      changePasswordUser.username,
-      changePasswordUser.password
-    );
-    setChangePasswordUser({ username: '', password: '' });
-    setShowChangePasswordForm(false);
+    await withLoading(`changePassword_${changePasswordUser.username}`, async () => {
+      await handleUserAction(
+        'changePassword',
+        changePasswordUser.username,
+        changePasswordUser.password
+      );
+      setChangePasswordUser({ username: '', password: '' });
+      setShowChangePasswordForm(false);
+    });
   };
 
   const handleShowChangePasswordForm = (username: string) => {
@@ -557,14 +595,16 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   const handleSaveUserGroups = async () => {
     if (!selectedUserForGroup) return;
 
-    try {
-      await handleAssignUserGroup(selectedUserForGroup.username, selectedUserGroups);
-      setShowConfigureUserGroupModal(false);
-      setSelectedUserForGroup(null);
-      setSelectedUserGroups([]);
-    } catch (err) {
-      // 错误处理已在 handleAssignUserGroup 中处理
-    }
+    await withLoading(`saveUserGroups_${selectedUserForGroup.username}`, async () => {
+      try {
+        await handleAssignUserGroup(selectedUserForGroup.username, selectedUserGroups);
+        setShowConfigureUserGroupModal(false);
+        setSelectedUserForGroup(null);
+        setSelectedUserGroups([]);
+      } catch (err) {
+        // 错误处理已在 handleAssignUserGroup 中处理
+      }
+    });
   };
 
   // 处理用户选择
@@ -599,33 +639,36 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   const handleBatchSetUserGroup = async (userGroup: string) => {
     if (selectedUsers.size === 0) return;
 
-    try {
-      const res = await fetch('/api/admin/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'batchUpdateUserGroups',
-          usernames: Array.from(selectedUsers),
-          userGroups: userGroup === '' ? [] : [userGroup],
-        }),
-      });
+    await withLoading('batchSetUserGroup', async () => {
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'batchUpdateUserGroups',
+            usernames: Array.from(selectedUsers),
+            userGroups: userGroup === '' ? [] : [userGroup],
+          }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `操作失败: ${res.status}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `操作失败: ${res.status}`);
+        }
+
+        const userCount = selectedUsers.size;
+        setSelectedUsers(new Set());
+        setShowBatchUserGroupModal(false);
+        setSelectedUserGroup('');
+        showSuccess(`已为 ${userCount} 个用户设置用户组: ${userGroup}`, showAlert);
+
+        // 刷新配置
+        await refreshConfig();
+      } catch (err) {
+        showError('批量设置用户组失败', showAlert);
+        throw err;
       }
-
-      const userCount = selectedUsers.size;
-      setSelectedUsers(new Set());
-      setShowBatchUserGroupModal(false);
-      setSelectedUserGroup('');
-      showSuccess(`已为 ${userCount} 个用户设置用户组: ${userGroup}`, showAlert);
-
-      // 刷新配置
-      await refreshConfig();
-    } catch (err) {
-      showError('批量设置用户组失败', showAlert);
-    }
+    });
   };
 
 
@@ -644,30 +687,33 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   const handleSaveUserApis = async () => {
     if (!selectedUser) return;
 
-    try {
-      const res = await fetch('/api/admin/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetUsername: selectedUser.username,
-          action: 'updateUserApis',
-          enabledApis: selectedApis,
-        }),
-      });
+    await withLoading(`saveUserApis_${selectedUser.username}`, async () => {
+      try {
+        const res = await fetch('/api/admin/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUsername: selectedUser.username,
+            action: 'updateUserApis',
+            enabledApis: selectedApis,
+          }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `操作失败: ${res.status}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `操作失败: ${res.status}`);
+        }
+
+        // 成功后刷新配置
+        await refreshConfig();
+        setShowConfigureApisModal(false);
+        setSelectedUser(null);
+        setSelectedApis([]);
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '操作失败', showAlert);
+        throw err;
       }
-
-      // 成功后刷新配置
-      await refreshConfig();
-      setShowConfigureApisModal(false);
-      setSelectedUser(null);
-      setSelectedApis([]);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '操作失败', showAlert);
-    }
+    });
   };
 
   // 通用请求函数
@@ -711,13 +757,15 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   const handleConfirmDeleteUser = async () => {
     if (!deletingUser) return;
 
-    try {
-      await handleUserAction('deleteUser', deletingUser);
-      setShowDeleteUserModal(false);
-      setDeletingUser(null);
-    } catch (err) {
-      // 错误处理已在 handleUserAction 中处理
-    }
+    await withLoading(`deleteUser_${deletingUser}`, async () => {
+      try {
+        await handleUserAction('deleteUser', deletingUser);
+        setShowDeleteUserModal(false);
+        setDeletingUser(null);
+      } catch (err) {
+        // 错误处理已在 handleUserAction 中处理
+      }
+    });
   };
 
   if (!config) {
@@ -801,7 +849,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
                     <button
                       onClick={() => handleStartEditUserGroup(group)}
-                      className={buttonStyles.roundedPrimary}
+                      disabled={isLoading(`userGroup_edit_${group.name}`)}
+                      className={`${buttonStyles.roundedPrimary} ${isLoading(`userGroup_edit_${group.name}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       编辑
                     </button>
@@ -911,10 +960,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
               <div className='flex justify-end'>
                 <button
                   onClick={handleAddUser}
-                  disabled={!newUser.username || !newUser.password}
-                  className={!newUser.username || !newUser.password ? buttonStyles.disabled : buttonStyles.success}
+                  disabled={!newUser.username || !newUser.password || isLoading('addUser')}
+                  className={!newUser.username || !newUser.password || isLoading('addUser') ? buttonStyles.disabled : buttonStyles.success}
                 >
-                  添加
+                  {isLoading('addUser') ? '添加中...' : '添加'}
                 </button>
               </div>
             </div>
@@ -949,10 +998,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
               />
               <button
                 onClick={handleChangePassword}
-                disabled={!changePasswordUser.password}
-                className={`w-full sm:w-auto ${!changePasswordUser.password ? buttonStyles.disabled : buttonStyles.primary}`}
+                disabled={!changePasswordUser.password || isLoading(`changePassword_${changePasswordUser.username}`)}
+                className={`w-full sm:w-auto ${!changePasswordUser.password || isLoading(`changePassword_${changePasswordUser.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
               >
-                修改密码
+                {isLoading(`changePassword_${changePasswordUser.username}`) ? '修改中...' : '修改密码'}
               </button>
               <button
                 onClick={() => {
@@ -1177,7 +1226,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                               {user.role === 'user' && (
                                 <button
                                   onClick={() => handleSetAdmin(user.username)}
-                                  className={buttonStyles.roundedPurple}
+                                  disabled={isLoading(`setAdmin_${user.username}`)}
+                                  className={`${buttonStyles.roundedPurple} ${isLoading(`setAdmin_${user.username}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   设为管理
                                 </button>
@@ -1187,7 +1237,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                   onClick={() =>
                                     handleRemoveAdmin(user.username)
                                   }
-                                  className={buttonStyles.roundedSecondary}
+                                  disabled={isLoading(`removeAdmin_${user.username}`)}
+                                  className={`${buttonStyles.roundedSecondary} ${isLoading(`removeAdmin_${user.username}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   取消管理
                                 </button>
@@ -1196,7 +1247,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                 (!user.banned ? (
                                   <button
                                     onClick={() => handleBanUser(user.username)}
-                                    className={buttonStyles.roundedDanger}
+                                    disabled={isLoading(`banUser_${user.username}`)}
+                                    className={`${buttonStyles.roundedDanger} ${isLoading(`banUser_${user.username}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     封禁
                                   </button>
@@ -1205,7 +1257,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                                     onClick={() =>
                                       handleUnbanUser(user.username)
                                     }
-                                    className={buttonStyles.roundedSuccess}
+                                    disabled={isLoading(`unbanUser_${user.username}`)}
+                                    className={`${buttonStyles.roundedSuccess} ${isLoading(`unbanUser_${user.username}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     解封
                                   </button>
@@ -1350,9 +1403,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 </button>
                 <button
                   onClick={handleSaveUserApis}
-                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
+                  disabled={isLoading(`saveUserApis_${selectedUser?.username}`)}
+                  className={`px-6 py-2.5 text-sm font-medium ${isLoading(`saveUserApis_${selectedUser?.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  确认配置
+                  {isLoading(`saveUserApis_${selectedUser?.username}`) ? '配置中...' : '确认配置'}
                 </button>
               </div>
             </div>
@@ -1476,10 +1530,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   </button>
                   <button
                     onClick={handleAddUserGroup}
-                    disabled={!newUserGroup.name.trim()}
-                    className={`px-6 py-2.5 text-sm font-medium ${!newUserGroup.name.trim() ? buttonStyles.disabled : buttonStyles.primary}`}
+                    disabled={!newUserGroup.name.trim() || isLoading('userGroup_add_new')}
+                    className={`px-6 py-2.5 text-sm font-medium ${!newUserGroup.name.trim() || isLoading('userGroup_add_new') ? buttonStyles.disabled : buttonStyles.primary}`}
                   >
-                    添加用户组
+                    {isLoading('userGroup_add_new') ? '添加中...' : '添加用户组'}
                   </button>
                 </div>
               </div>
@@ -1588,9 +1642,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   </button>
                   <button
                     onClick={handleEditUserGroup}
-                    className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
+                    disabled={isLoading(`userGroup_edit_${editingUserGroup?.name}`)}
+                    className={`px-6 py-2.5 text-sm font-medium ${isLoading(`userGroup_edit_${editingUserGroup?.name}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                   >
-                    保存修改
+                    {isLoading(`userGroup_edit_${editingUserGroup?.name}`) ? '保存中...' : '保存修改'}
                   </button>
                 </div>
               </div>
@@ -1684,9 +1739,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 </button>
                 <button
                   onClick={handleSaveUserGroups}
-                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
+                  disabled={isLoading(`saveUserGroups_${selectedUserForGroup?.username}`)}
+                  className={`px-6 py-2.5 text-sm font-medium ${isLoading(`saveUserGroups_${selectedUserForGroup?.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  确认配置
+                  {isLoading(`saveUserGroups_${selectedUserForGroup?.username}`) ? '配置中...' : '确认配置'}
                 </button>
               </div>
             </div>
@@ -1783,9 +1839,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 </button>
                 <button
                   onClick={handleConfirmDeleteUserGroup}
-                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.danger}`}
+                  disabled={isLoading(`userGroup_delete_${deletingUserGroup?.name}`)}
+                  className={`px-6 py-2.5 text-sm font-medium ${isLoading(`userGroup_delete_${deletingUserGroup?.name}`) ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  确认删除
+                  {isLoading(`userGroup_delete_${deletingUserGroup?.name}`) ? '删除中...' : '确认删除'}
                 </button>
               </div>
             </div>
@@ -1934,9 +1991,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 </button>
                 <button
                   onClick={() => handleBatchSetUserGroup(selectedUserGroup)}
-                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.primary}`}
+                  disabled={isLoading('batchSetUserGroup')}
+                  className={`px-6 py-2.5 text-sm font-medium ${isLoading('batchSetUserGroup') ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  确认设置
+                  {isLoading('batchSetUserGroup') ? '设置中...' : '确认设置'}
                 </button>
               </div>
             </div>
@@ -1970,6 +2028,7 @@ const VideoSourceConfig = ({
   refreshConfig: () => Promise<void>;
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [sources, setSources] = useState<DataSource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -2069,40 +2128,39 @@ const VideoSourceConfig = ({
     const target = sources.find((s) => s.key === key);
     if (!target) return;
     const action = target.disabled ? 'enable' : 'disable';
-    callSourceApi({ action, key }).catch(() => {
+    withLoading(`toggleSource_${key}`, () => callSourceApi({ action, key })).catch(() => {
       console.error('操作失败', action, key);
     });
   };
 
   const handleDelete = (key: string) => {
-    callSourceApi({ action: 'delete', key }).catch(() => {
+    withLoading(`deleteSource_${key}`, () => callSourceApi({ action: 'delete', key })).catch(() => {
       console.error('操作失败', 'delete', key);
     });
   };
 
   const handleAddSource = () => {
     if (!newSource.name || !newSource.key || !newSource.api) return;
-    callSourceApi({
-      action: 'add',
-      key: newSource.key,
-      name: newSource.name,
-      api: newSource.api,
-      detail: newSource.detail,
-    })
-      .then(() => {
-        setNewSource({
-          name: '',
-          key: '',
-          api: '',
-          detail: '',
-          disabled: false,
-          from: 'custom',
-        });
-        setShowAddForm(false);
-      })
-      .catch(() => {
-        console.error('操作失败', 'add', newSource);
+    withLoading('addSource', async () => {
+      await callSourceApi({
+        action: 'add',
+        key: newSource.key,
+        name: newSource.name,
+        api: newSource.api,
+        detail: newSource.detail,
       });
+      setNewSource({
+        name: '',
+        key: '',
+        api: '',
+        detail: '',
+        disabled: false,
+        from: 'custom',
+      });
+      setShowAddForm(false);
+    }).catch(() => {
+      console.error('操作失败', 'add', newSource);
+    });
   };
 
   const handleDragEnd = (event: any) => {
@@ -2116,7 +2174,7 @@ const VideoSourceConfig = ({
 
   const handleSaveOrder = () => {
     const order = sources.map((s) => s.key);
-    callSourceApi({ action: 'sort', order })
+    withLoading('saveSourceOrder', () => callSourceApi({ action: 'sort', order }))
       .then(() => {
         setOrderChanged(false);
       })
@@ -2132,91 +2190,94 @@ const VideoSourceConfig = ({
       return;
     }
 
-    setIsValidating(true);
-    setValidationResults([]); // 清空之前的结果
-    setShowValidationModal(false); // 立即关闭弹窗
+    await withLoading('validateSources', async () => {
+      setIsValidating(true);
+      setValidationResults([]); // 清空之前的结果
+      setShowValidationModal(false); // 立即关闭弹窗
 
-    // 初始化所有视频源为检测中状态
-    const initialResults = sources.map(source => ({
-      key: source.key,
-      name: source.name,
-      status: 'validating' as const,
-      message: '检测中...',
-      resultCount: 0
-    }));
-    setValidationResults(initialResults);
+      // 初始化所有视频源为检测中状态
+      const initialResults = sources.map(source => ({
+        key: source.key,
+        name: source.name,
+        status: 'validating' as const,
+        message: '检测中...',
+        resultCount: 0
+      }));
+      setValidationResults(initialResults);
 
-    try {
-      // 使用EventSource接收流式数据
-      const eventSource = new EventSource(`/api/admin/source/validate?q=${encodeURIComponent(searchKeyword.trim())}`);
+      try {
+        // 使用EventSource接收流式数据
+        const eventSource = new EventSource(`/api/admin/source/validate?q=${encodeURIComponent(searchKeyword.trim())}`);
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
 
-          switch (data.type) {
-            case 'start':
-              console.log(`开始检测 ${data.totalSources} 个视频源`);
-              break;
+            switch (data.type) {
+              case 'start':
+                console.log(`开始检测 ${data.totalSources} 个视频源`);
+                break;
 
-            case 'source_result':
-            case 'source_error':
-              // 更新验证结果
-              setValidationResults(prev => {
-                const existing = prev.find(r => r.key === data.source);
-                if (existing) {
-                  return prev.map(r => r.key === data.source ? {
-                    key: data.source,
-                    name: sources.find(s => s.key === data.source)?.name || data.source,
-                    status: data.status,
-                    message: data.status === 'valid' ? '搜索正常' :
-                      data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
-                    resultCount: data.status === 'valid' ? 1 : 0
-                  } : r);
-                } else {
-                  return [...prev, {
-                    key: data.source,
-                    name: sources.find(s => s.key === data.source)?.name || data.source,
-                    status: data.status,
-                    message: data.status === 'valid' ? '搜索正常' :
-                      data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
-                    resultCount: data.status === 'valid' ? 1 : 0
-                  }];
-                }
-              });
-              break;
+              case 'source_result':
+              case 'source_error':
+                // 更新验证结果
+                setValidationResults(prev => {
+                  const existing = prev.find(r => r.key === data.source);
+                  if (existing) {
+                    return prev.map(r => r.key === data.source ? {
+                      key: data.source,
+                      name: sources.find(s => s.key === data.source)?.name || data.source,
+                      status: data.status,
+                      message: data.status === 'valid' ? '搜索正常' :
+                        data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
+                      resultCount: data.status === 'valid' ? 1 : 0
+                    } : r);
+                  } else {
+                    return [...prev, {
+                      key: data.source,
+                      name: sources.find(s => s.key === data.source)?.name || data.source,
+                      status: data.status,
+                      message: data.status === 'valid' ? '搜索正常' :
+                        data.status === 'no_results' ? '无法搜索到结果' : '连接失败',
+                      resultCount: data.status === 'valid' ? 1 : 0
+                    }];
+                  }
+                });
+                break;
 
-            case 'complete':
-              console.log(`检测完成，共检测 ${data.completedSources} 个视频源`);
-              eventSource.close();
-              setIsValidating(false);
-              break;
+              case 'complete':
+                console.log(`检测完成，共检测 ${data.completedSources} 个视频源`);
+                eventSource.close();
+                setIsValidating(false);
+                break;
+            }
+          } catch (error) {
+            console.error('解析EventSource数据失败:', error);
           }
-        } catch (error) {
-          console.error('解析EventSource数据失败:', error);
-        }
-      };
+        };
 
-      eventSource.onerror = (error) => {
-        console.error('EventSource错误:', error);
-        eventSource.close();
-        setIsValidating(false);
-        showAlert({ type: 'error', title: '验证失败', message: '连接错误，请重试' });
-      };
-
-      // 设置超时，防止长时间等待
-      setTimeout(() => {
-        if (eventSource.readyState === EventSource.OPEN) {
+        eventSource.onerror = (error) => {
+          console.error('EventSource错误:', error);
           eventSource.close();
           setIsValidating(false);
-          showAlert({ type: 'warning', title: '验证超时', message: '检测超时，请重试' });
-        }
-      }, 60000); // 60秒超时
+          showAlert({ type: 'error', title: '验证失败', message: '连接错误，请重试' });
+        };
 
-    } catch (error) {
-      setIsValidating(false);
-      showAlert({ type: 'error', title: '验证失败', message: error instanceof Error ? error.message : '未知错误' });
-    }
+        // 设置超时，防止长时间等待
+        setTimeout(() => {
+          if (eventSource.readyState === EventSource.OPEN) {
+            eventSource.close();
+            setIsValidating(false);
+            showAlert({ type: 'warning', title: '验证超时', message: '检测超时，请重试' });
+          }
+        }, 60000); // 60秒超时
+
+      } catch (error) {
+        setIsValidating(false);
+        showAlert({ type: 'error', title: '验证失败', message: error instanceof Error ? error.message : '未知错误' });
+        throw error;
+      }
+    });
   };
 
   // 获取有效性状态显示
@@ -2338,17 +2399,19 @@ const VideoSourceConfig = ({
         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
           <button
             onClick={() => handleToggleEnable(source.key)}
+            disabled={isLoading(`toggleSource_${source.key}`)}
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${!source.disabled
               ? buttonStyles.roundedDanger
               : buttonStyles.roundedSuccess
-              } transition-colors`}
+              } transition-colors ${isLoading(`toggleSource_${source.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {!source.disabled ? '禁用' : '启用'}
           </button>
           {source.from !== 'config' && (
             <button
               onClick={() => handleDelete(source.key)}
-              className={buttonStyles.roundedSecondary}
+              disabled={isLoading(`deleteSource_${source.key}`)}
+              className={`${buttonStyles.roundedSecondary} ${isLoading(`deleteSource_${source.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               删除
             </button>
@@ -2414,7 +2477,7 @@ const VideoSourceConfig = ({
       message: confirmMessage,
       onConfirm: async () => {
         try {
-          await callSourceApi({ action, keys });
+          await withLoading(`batchSource_${action}`, () => callSourceApi({ action, keys }));
           showAlert({ type: 'success', title: `${actionName}成功`, message: `${actionName}了 ${keys.length} 个视频源`, timer: 2000 });
           // 重置选择状态
           setSelectedSources(new Set());
@@ -2454,21 +2517,24 @@ const VideoSourceConfig = ({
                 </span>
                 <button
                   onClick={() => handleBatchOperation('batch_enable')}
-                  className={`px-3 py-1 text-sm ${buttonStyles.success}`}
+                  disabled={isLoading('batchSource_batch_enable')}
+                  className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_enable') ? buttonStyles.disabled : buttonStyles.success}`}
                 >
-                  批量启用
+                  {isLoading('batchSource_batch_enable') ? '启用中...' : '批量启用'}
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_disable')}
-                  className={`px-3 py-1 text-sm ${buttonStyles.warning}`}
+                  disabled={isLoading('batchSource_batch_disable')}
+                  className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_disable') ? buttonStyles.disabled : buttonStyles.warning}`}
                 >
-                  批量禁用
+                  {isLoading('batchSource_batch_disable') ? '禁用中...' : '批量禁用'}
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_delete')}
-                  className={`px-3 py-1 text-sm ${buttonStyles.danger}`}
+                  disabled={isLoading('batchSource_batch_delete')}
+                  className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_delete') ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  批量删除
+                  {isLoading('batchSource_batch_delete') ? '删除中...' : '批量删除'}
                 </button>
               </div>
               <div className='w-px h-6 bg-gray-300 dark:bg-gray-600'></div>
@@ -2543,10 +2609,10 @@ const VideoSourceConfig = ({
           <div className='flex justify-end'>
             <button
               onClick={handleAddSource}
-              disabled={!newSource.name || !newSource.key || !newSource.api}
-              className={`w-full sm:w-auto px-4 py-2 ${!newSource.name || !newSource.key || !newSource.api ? buttonStyles.disabled : buttonStyles.success}`}
+              disabled={!newSource.name || !newSource.key || !newSource.api || isLoading('addSource')}
+              className={`w-full sm:w-auto px-4 py-2 ${!newSource.name || !newSource.key || !newSource.api || isLoading('addSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              添加
+              {isLoading('addSource') ? '添加中...' : '添加'}
             </button>
           </div>
         </div>
@@ -2617,9 +2683,10 @@ const VideoSourceConfig = ({
         <div className='flex justify-end'>
           <button
             onClick={handleSaveOrder}
-            className={`px-3 py-1.5 text-sm ${buttonStyles.primary}`}
+            disabled={isLoading('saveSourceOrder')}
+            className={`px-3 py-1.5 text-sm ${isLoading('saveSourceOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            保存排序
+            {isLoading('saveSourceOrder') ? '保存中...' : '保存排序'}
           </button>
         </div>
       )}
@@ -2652,10 +2719,10 @@ const VideoSourceConfig = ({
                 </button>
                 <button
                   onClick={handleValidateSources}
-                  disabled={isValidating || !searchKeyword.trim()}
-                  className={`px-4 py-2 ${isValidating || !searchKeyword.trim() ? buttonStyles.disabled : buttonStyles.primary}`}
+                  disabled={!searchKeyword.trim()}
+                  className={`px-4 py-2 ${!searchKeyword.trim() ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  {isValidating ? `检测中... (${validationResults.length}/${sources.length})` : '开始检测'}
+                  开始检测
                 </button>
               </div>
             </div>
@@ -2710,9 +2777,10 @@ const VideoSourceConfig = ({
                 </button>
                 <button
                   onClick={confirmModal.onConfirm}
-                  className={`px-4 py-2 text-sm font-medium ${buttonStyles.primary}`}
+                  disabled={isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete')}
+                  className={`px-4 py-2 text-sm font-medium ${isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete') ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  确认
+                  {isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete') ? '操作中...' : '确认'}
                 </button>
               </div>
             </div>
@@ -2733,6 +2801,7 @@ const CategoryConfig = ({
   refreshConfig: () => Promise<void>;
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [categories, setCategories] = useState<CustomCategory[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -2794,38 +2863,37 @@ const CategoryConfig = ({
     const target = categories.find((c) => c.query === query && c.type === type);
     if (!target) return;
     const action = target.disabled ? 'enable' : 'disable';
-    callCategoryApi({ action, query, type }).catch(() => {
+    withLoading(`toggleCategory_${query}_${type}`, () => callCategoryApi({ action, query, type })).catch(() => {
       console.error('操作失败', action, query, type);
     });
   };
 
   const handleDelete = (query: string, type: 'movie' | 'tv') => {
-    callCategoryApi({ action: 'delete', query, type }).catch(() => {
+    withLoading(`deleteCategory_${query}_${type}`, () => callCategoryApi({ action: 'delete', query, type })).catch(() => {
       console.error('操作失败', 'delete', query, type);
     });
   };
 
   const handleAddCategory = () => {
     if (!newCategory.name || !newCategory.query) return;
-    callCategoryApi({
-      action: 'add',
-      name: newCategory.name,
-      type: newCategory.type,
-      query: newCategory.query,
-    })
-      .then(() => {
-        setNewCategory({
-          name: '',
-          type: 'movie',
-          query: '',
-          disabled: false,
-          from: 'custom',
-        });
-        setShowAddForm(false);
-      })
-      .catch(() => {
-        console.error('操作失败', 'add', newCategory);
+    withLoading('addCategory', async () => {
+      await callCategoryApi({
+        action: 'add',
+        name: newCategory.name,
+        type: newCategory.type,
+        query: newCategory.query,
       });
+      setNewCategory({
+        name: '',
+        type: 'movie',
+        query: '',
+        disabled: false,
+        from: 'custom',
+      });
+      setShowAddForm(false);
+    }).catch(() => {
+      console.error('操作失败', 'add', newCategory);
+    });
   };
 
   const handleDragEnd = (event: any) => {
@@ -2843,7 +2911,7 @@ const CategoryConfig = ({
 
   const handleSaveOrder = () => {
     const order = categories.map((c) => `${c.query}:${c.type}`);
-    callCategoryApi({ action: 'sort', order })
+    withLoading('saveCategoryOrder', () => callCategoryApi({ action: 'sort', order }))
       .then(() => {
         setOrderChanged(false);
       })
@@ -2909,17 +2977,19 @@ const CategoryConfig = ({
             onClick={() =>
               handleToggleEnable(category.query, category.type)
             }
+            disabled={isLoading(`toggleCategory_${category.query}_${category.type}`)}
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${!category.disabled
               ? buttonStyles.roundedDanger
               : buttonStyles.roundedSuccess
-              } transition-colors`}
+              } transition-colors ${isLoading(`toggleCategory_${category.query}_${category.type}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {!category.disabled ? '禁用' : '启用'}
           </button>
           {category.from !== 'config' && (
             <button
               onClick={() => handleDelete(category.query, category.type)}
-              className={buttonStyles.roundedSecondary}
+              disabled={isLoading(`deleteCategory_${category.query}_${category.type}`)}
+              className={`${buttonStyles.roundedSecondary} ${isLoading(`deleteCategory_${category.query}_${category.type}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               删除
             </button>
@@ -2990,10 +3060,10 @@ const CategoryConfig = ({
           <div className='flex justify-end'>
             <button
               onClick={handleAddCategory}
-              disabled={!newCategory.name || !newCategory.query}
-              className={`w-full sm:w-auto px-4 py-2 ${!newCategory.name || !newCategory.query ? buttonStyles.disabled : buttonStyles.success}`}
+              disabled={!newCategory.name || !newCategory.query || isLoading('addCategory')}
+              className={`w-full sm:w-auto px-4 py-2 ${!newCategory.name || !newCategory.query || isLoading('addCategory') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              添加
+              {isLoading('addCategory') ? '添加中...' : '添加'}
             </button>
           </div>
         </div>
@@ -3051,9 +3121,10 @@ const CategoryConfig = ({
         <div className='flex justify-end'>
           <button
             onClick={handleSaveOrder}
-            className={`px-3 py-1.5 text-sm ${buttonStyles.primary}`}
+            disabled={isLoading('saveCategoryOrder')}
+            className={`px-3 py-1.5 text-sm ${isLoading('saveCategoryOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            保存排序
+            {isLoading('saveCategoryOrder') ? '保存中...' : '保存排序'}
           </button>
         </div>
       )}
@@ -3075,6 +3146,7 @@ const CategoryConfig = ({
 // 新增配置文件组件
 const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [configContent, setConfigContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [subscriptionUrl, setSubscriptionUrl] = useState('');
@@ -3104,63 +3176,63 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
       return;
     }
 
-    try {
-      setFetching(true);
-      const resp = await fetch('/api/admin/config_subscription/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: subscriptionUrl }),
-      });
+    await withLoading('fetchConfig', async () => {
+      try {
+        const resp = await fetch('/api/admin/config_subscription/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: subscriptionUrl }),
+        });
 
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.error || `拉取失败: ${resp.status}`);
-      }
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.error || `拉取失败: ${resp.status}`);
+        }
 
-      const data = await resp.json();
-      if (data.configContent) {
-        setConfigContent(data.configContent);
-        // 更新本地配置的最后检查时间
-        const currentTime = new Date().toISOString();
-        setLastCheckTime(currentTime);
-        showSuccess('配置拉取成功', showAlert);
-      } else {
-        showError('拉取失败：未获取到配置内容', showAlert);
+        const data = await resp.json();
+        if (data.configContent) {
+          setConfigContent(data.configContent);
+          // 更新本地配置的最后检查时间
+          const currentTime = new Date().toISOString();
+          setLastCheckTime(currentTime);
+          showSuccess('配置拉取成功', showAlert);
+        } else {
+          showError('拉取失败：未获取到配置内容', showAlert);
+        }
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '拉取失败', showAlert);
+        throw err;
       }
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '拉取失败', showAlert);
-    } finally {
-      setFetching(false);
-    }
+    });
   };
 
   // 保存配置文件
   const handleSave = async () => {
-    try {
-      setSaving(true);
-      const resp = await fetch('/api/admin/config_file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          configFile: configContent,
-          subscriptionUrl,
-          autoUpdate,
-          lastCheckTime: lastCheckTime || new Date().toISOString()
-        }),
-      });
+    await withLoading('saveConfig', async () => {
+      try {
+        const resp = await fetch('/api/admin/config_file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            configFile: configContent,
+            subscriptionUrl,
+            autoUpdate,
+            lastCheckTime: lastCheckTime || new Date().toISOString()
+          }),
+        });
 
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.error || `保存失败: ${resp.status}`);
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.error || `保存失败: ${resp.status}`);
+        }
+
+        showSuccess('配置文件保存成功', showAlert);
+        await refreshConfig();
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '保存失败', showAlert);
+        throw err;
       }
-
-      showSuccess('配置文件保存成功', showAlert);
-      await refreshConfig();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '保存失败', showAlert);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
 
@@ -3209,13 +3281,13 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           <div className='pt-2'>
             <button
               onClick={handleFetchConfig}
-              disabled={fetching || !subscriptionUrl.trim()}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${fetching || !subscriptionUrl.trim()
+              disabled={isLoading('fetchConfig') || !subscriptionUrl.trim()}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${isLoading('fetchConfig') || !subscriptionUrl.trim()
                 ? buttonStyles.disabled
                 : buttonStyles.success
                 }`}
             >
-              {fetching ? (
+              {isLoading('fetchConfig') ? (
                 <div className='flex items-center justify-center gap-2'>
                   <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
                   拉取中…
@@ -3280,13 +3352,13 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           </div>
           <button
             onClick={handleSave}
-            disabled={saving}
-            className={`px-4 py-2 rounded-lg transition-colors ${saving
+            disabled={isLoading('saveConfig')}
+            className={`px-4 py-2 rounded-lg transition-colors ${isLoading('saveConfig')
               ? buttonStyles.disabled
               : buttonStyles.success
               }`}
           >
-            {saving ? '保存中…' : '保存'}
+            {isLoading('saveConfig') ? '保存中…' : '保存'}
           </button>
         </div>
       </div>
@@ -3308,6 +3380,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
 // 新增站点配置组件
 const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | null; refreshConfig: () => Promise<void> }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [siteSettings, setSiteSettings] = useState<SiteConfig>({
     SiteName: '',
     Announcement: '',
@@ -3447,26 +3520,26 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
 
   // 保存站点配置
   const handleSave = async () => {
-    try {
-      setSaving(true);
-      const resp = await fetch('/api/admin/site', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...siteSettings }),
-      });
+    await withLoading('saveSiteConfig', async () => {
+      try {
+        const resp = await fetch('/api/admin/site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...siteSettings }),
+        });
 
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.error || `保存失败: ${resp.status}`);
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.error || `保存失败: ${resp.status}`);
+        }
+
+        showSuccess('保存成功, 请刷新页面', showAlert);
+        await refreshConfig();
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '保存失败', showAlert);
+        throw err;
       }
-
-      showSuccess('保存成功, 请刷新页面', showAlert);
-      await refreshConfig();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '保存失败', showAlert);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   if (!config) {
@@ -3847,13 +3920,13 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
       <div className='flex justify-end'>
         <button
           onClick={handleSave}
-          disabled={saving}
-          className={`px-4 py-2 ${saving
+          disabled={isLoading('saveSiteConfig')}
+          className={`px-4 py-2 ${isLoading('saveSiteConfig')
             ? buttonStyles.disabled
             : buttonStyles.success
             } rounded-lg transition-colors`}
         >
-          {saving ? '保存中…' : '保存'}
+          {isLoading('saveSiteConfig') ? '保存中…' : '保存'}
         </button>
       </div>
 
@@ -3880,6 +3953,7 @@ const LiveSourceConfig = ({
   refreshConfig: () => Promise<void>;
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [liveSources, setLiveSources] = useState<LiveDataSource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -3944,13 +4018,13 @@ const LiveSourceConfig = ({
     const target = liveSources.find((s) => s.key === key);
     if (!target) return;
     const action = target.disabled ? 'enable' : 'disable';
-    callLiveSourceApi({ action, key }).catch(() => {
+    withLoading(`toggleLiveSource_${key}`, () => callLiveSourceApi({ action, key })).catch(() => {
       console.error('操作失败', action, key);
     });
   };
 
   const handleDelete = (key: string) => {
-    callLiveSourceApi({ action: 'delete', key }).catch(() => {
+    withLoading(`deleteLiveSource_${key}`, () => callLiveSourceApi({ action: 'delete', key })).catch(() => {
       console.error('操作失败', 'delete', key);
     });
   };
@@ -3959,53 +4033,55 @@ const LiveSourceConfig = ({
   const handleRefreshLiveSources = async () => {
     if (isRefreshing) return;
 
-    setIsRefreshing(true);
-    try {
-      const response = await fetch('/api/admin/live/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+    await withLoading('refreshLiveSources', async () => {
+      setIsRefreshing(true);
+      try {
+        const response = await fetch('/api/admin/live/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `刷新失败: ${response.status}`);
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `刷新失败: ${response.status}`);
+        }
+
+        // 刷新成功后重新获取配置
+        await refreshConfig();
+        showAlert({ type: 'success', title: '刷新成功', message: '直播源已刷新', timer: 2000 });
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '刷新失败', showAlert);
+        throw err;
+      } finally {
+        setIsRefreshing(false);
       }
-
-      // 刷新成功后重新获取配置
-      await refreshConfig();
-      showAlert({ type: 'success', title: '刷新成功', message: '直播源已刷新', timer: 2000 });
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '刷新失败', showAlert);
-    } finally {
-      setIsRefreshing(false);
-    }
+    });
   };
 
   const handleAddLiveSource = () => {
     if (!newLiveSource.name || !newLiveSource.key || !newLiveSource.url) return;
-    callLiveSourceApi({
-      action: 'add',
-      key: newLiveSource.key,
-      name: newLiveSource.name,
-      url: newLiveSource.url,
-      ua: newLiveSource.ua,
-      epg: newLiveSource.epg,
-    })
-      .then(() => {
-        setNewLiveSource({
-          name: '',
-          key: '',
-          url: '',
-          epg: '',
-          ua: '',
-          disabled: false,
-          from: 'custom',
-        });
-        setShowAddForm(false);
-      })
-      .catch(() => {
-        console.error('操作失败', 'add', newLiveSource);
+    withLoading('addLiveSource', async () => {
+      await callLiveSourceApi({
+        action: 'add',
+        key: newLiveSource.key,
+        name: newLiveSource.name,
+        url: newLiveSource.url,
+        ua: newLiveSource.ua,
+        epg: newLiveSource.epg,
       });
+      setNewLiveSource({
+        name: '',
+        key: '',
+        url: '',
+        epg: '',
+        ua: '',
+        disabled: false,
+        from: 'custom',
+      });
+      setShowAddForm(false);
+    }).catch(() => {
+      console.error('操作失败', 'add', newLiveSource);
+    });
   };
 
   const handleDragEnd = (event: any) => {
@@ -4019,7 +4095,7 @@ const LiveSourceConfig = ({
 
   const handleSaveOrder = () => {
     const order = liveSources.map((s) => s.key);
-    callLiveSourceApi({ action: 'sort', order })
+    withLoading('saveLiveSourceOrder', () => callLiveSourceApi({ action: 'sort', order }))
       .then(() => {
         setOrderChanged(false);
       })
@@ -4092,17 +4168,19 @@ const LiveSourceConfig = ({
         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
           <button
             onClick={() => handleToggleEnable(liveSource.key)}
+            disabled={isLoading(`toggleLiveSource_${liveSource.key}`)}
             className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${!liveSource.disabled
               ? buttonStyles.roundedDanger
               : buttonStyles.roundedSuccess
-              } transition-colors`}
+              } transition-colors ${isLoading(`toggleLiveSource_${liveSource.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {!liveSource.disabled ? '禁用' : '启用'}
           </button>
           {liveSource.from !== 'config' && (
             <button
               onClick={() => handleDelete(liveSource.key)}
-              className={buttonStyles.roundedSecondary}
+              disabled={isLoading(`deleteLiveSource_${liveSource.key}`)}
+              className={`${buttonStyles.roundedSecondary} ${isLoading(`deleteLiveSource_${liveSource.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               删除
             </button>
@@ -4130,13 +4208,13 @@ const LiveSourceConfig = ({
         <div className='flex items-center space-x-2'>
           <button
             onClick={handleRefreshLiveSources}
-            disabled={isRefreshing}
-            className={`px-3 py-1.5 text-sm font-medium flex items-center space-x-2 ${isRefreshing
+            disabled={isRefreshing || isLoading('refreshLiveSources')}
+            className={`px-3 py-1.5 text-sm font-medium flex items-center space-x-2 ${isRefreshing || isLoading('refreshLiveSources')
               ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed text-white rounded-lg'
               : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors'
               }`}
           >
-            <span>{isRefreshing ? '刷新中...' : '刷新直播源'}</span>
+            <span>{isRefreshing || isLoading('refreshLiveSources') ? '刷新中...' : '刷新直播源'}</span>
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
@@ -4200,10 +4278,10 @@ const LiveSourceConfig = ({
           <div className='flex justify-end'>
             <button
               onClick={handleAddLiveSource}
-              disabled={!newLiveSource.name || !newLiveSource.key || !newLiveSource.url}
-              className={`w-full sm:w-auto px-4 py-2 ${!newLiveSource.name || !newLiveSource.key || !newLiveSource.url ? buttonStyles.disabled : buttonStyles.success}`}
+              disabled={!newLiveSource.name || !newLiveSource.key || !newLiveSource.url || isLoading('addLiveSource')}
+              className={`w-full sm:w-auto px-4 py-2 ${!newLiveSource.name || !newLiveSource.key || !newLiveSource.url || isLoading('addLiveSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              添加
+              {isLoading('addLiveSource') ? '添加中...' : '添加'}
             </button>
           </div>
         </div>
@@ -4267,9 +4345,10 @@ const LiveSourceConfig = ({
         <div className='flex justify-end'>
           <button
             onClick={handleSaveOrder}
-            className={`px-3 py-1.5 text-sm ${buttonStyles.primary}`}
+            disabled={isLoading('saveLiveSourceOrder')}
+            className={`px-3 py-1.5 text-sm ${isLoading('saveLiveSourceOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            保存排序
+            {isLoading('saveLiveSourceOrder') ? '保存中...' : '保存排序'}
           </button>
         </div>
       )}
@@ -4292,6 +4371,7 @@ const LiveSourceConfig = ({
 
 function AdminPageClient() {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4355,17 +4435,20 @@ function AdminPageClient() {
   };
 
   const handleConfirmResetConfig = async () => {
-    try {
-      const response = await fetch(`/api/admin/reset`);
-      if (!response.ok) {
-        throw new Error(`重置失败: ${response.status}`);
+    await withLoading('resetConfig', async () => {
+      try {
+        const response = await fetch(`/api/admin/reset`);
+        if (!response.ok) {
+          throw new Error(`重置失败: ${response.status}`);
+        }
+        showSuccess('重置成功，请刷新页面！', showAlert);
+        await fetchConfig();
+        setShowResetConfigModal(false);
+      } catch (err) {
+        showError(err instanceof Error ? err.message : '重置失败', showAlert);
+        throw err;
       }
-      showSuccess('重置成功，请刷新页面！', showAlert);
-      await fetchConfig();
-      setShowResetConfigModal(false);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : '重置失败', showAlert);
-    }
+    });
   };
 
   if (loading) {
@@ -4578,9 +4661,10 @@ function AdminPageClient() {
                 </button>
                 <button
                   onClick={handleConfirmResetConfig}
-                  className={`px-6 py-2.5 text-sm font-medium ${buttonStyles.danger}`}
+                  disabled={isLoading('resetConfig')}
+                  className={`px-6 py-2.5 text-sm font-medium ${isLoading('resetConfig') ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  确认重置
+                  {isLoading('resetConfig') ? '重置中...' : '确认重置'}
                 </button>
               </div>
             </div>

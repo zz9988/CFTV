@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.1.1",
+    date: "2025-08-25",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+    "增加对 url-tvg 和多 epg url 的支持"
+    ],
+    fixed: [
+    "修复 epg 数据清洗中去重叠逻辑未考虑日期导致的问题"
+    ]
+  },
+  {
     version: "4.1.0",
     date: "2025-08-24",
     added: [

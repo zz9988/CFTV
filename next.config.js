@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
+const WebpackObfuscator = require('webpack-obfuscator');
+const obfuscationConfig = require('./obfuscation.config.js');
+
 const nextConfig = {
   output: 'standalone',
   eslint: {
@@ -7,7 +10,7 @@ const nextConfig = {
   },
 
   reactStrictMode: false,
-  swcMinify: true,
+  swcMinify: false,
 
   experimental: {
     instrumentationHook: process.env.NODE_ENV === 'production',
@@ -28,7 +31,17 @@ const nextConfig = {
     ],
   },
 
-  webpack(config) {
+  webpack(config, { dev, isServer }) {
+    // 只在生产环境启用混淆
+    if (!dev && process.env.NODE_ENV === 'production') {
+      // 服务端代码混淆配置
+      if (isServer) {
+        config.plugins.push(
+          new WebpackObfuscator(obfuscationConfig.obfuscator)
+        );
+      }
+    }
+
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test?.test?.('.svg')

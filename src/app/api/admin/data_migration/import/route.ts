@@ -9,6 +9,8 @@ import { configSelfCheck, setCachedConfig } from '@/lib/config';
 import { SimpleCrypto } from '@/lib/crypto';
 import { db } from '@/lib/db';
 
+export const runtime = 'nodejs';
+
 const gunzipAsync = promisify(gunzip);
 
 export async function POST(req: NextRequest) {

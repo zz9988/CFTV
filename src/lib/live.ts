@@ -1,7 +1,7 @@
 import { getConfig } from "@/lib/config";
 import { db } from "@/lib/db";
 
-const defaultUA = 'okHttp/Mod-1.1.0'
+const defaultUA = 'AptvPlayer/1.4.10'
 
 export interface LiveChannels {
   channelNumber: number;
@@ -13,6 +13,14 @@ export interface LiveChannels {
     group: string;
     url: string;
   }[];
+  epgUrl: string;
+  epgs: {
+    [key: string]: {
+      start: string;
+      end: string;
+      title: string;
+    }[];
+  };
 }
 
 const cachedLiveChannels: { [key: string]: LiveChannels } = {};
@@ -58,12 +66,123 @@ export async function refreshLiveChannels(liveInfo: {
     },
   });
   const data = await response.text();
-  const channels = parseM3U(liveInfo.key, data);
+  const result = parseM3U(liveInfo.key, data);
+  const epgUrl = liveInfo.epg || result.tvgUrl;
+  const epgs = await parseEpg(epgUrl, liveInfo.ua || defaultUA, result.channels.map(channel => channel.tvgId).filter(tvgId => tvgId));
   cachedLiveChannels[liveInfo.key] = {
-    channelNumber: channels.length,
-    channels: channels,
+    channelNumber: result.channels.length,
+    channels: result.channels,
+    epgUrl: epgUrl,
+    epgs: epgs,
   };
-  return channels.length;
+  return result.channels.length;
+}
+
+async function parseEpg(epgUrl: string, ua: string, tvgIds: string[]): Promise<{
+  [key: string]: {
+    start: string;
+    end: string;
+    title: string;
+  }[]
+}> {
+  if (!epgUrl) {
+    return {};
+  }
+
+  const tvgs = new Set(tvgIds);
+  const result: { [key: string]: { start: string; end: string; title: string }[] } = {};
+
+  try {
+    const response = await fetch(epgUrl, {
+      headers: {
+        'User-Agent': ua,
+      },
+    });
+    if (!response.ok) {
+      console.warn(`Failed to fetch EPG from ${epgUrl}: ${response.status}`);
+      return {};
+    }
+
+    // 使用 ReadableStream 逐行处理，避免将整个文件加载到内存
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.warn('Response body is not readable');
+      return {};
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentTvgId = '';
+    let currentProgram: { start: string; end: string; title: string } | null = null;
+    let shouldSkipCurrentProgram = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+
+      // 保留最后一行（可能不完整）
+      buffer = lines.pop() || '';
+
+      // 处理完整的行
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+
+        // 解析 <programme> 标签
+        if (trimmedLine.startsWith('<programme')) {
+          // 提取 tvg-id
+          const tvgIdMatch = trimmedLine.match(/channel="([^"]*)"/);
+          currentTvgId = tvgIdMatch ? tvgIdMatch[1] : '';
+
+          // 提取开始时间
+          const startMatch = trimmedLine.match(/start="([^"]*)"/);
+          const start = startMatch ? startMatch[1] : '';
+
+          // 提取结束时间
+          const endMatch = trimmedLine.match(/stop="([^"]*)"/);
+          const end = endMatch ? endMatch[1] : '';
+
+          if (currentTvgId && start && end) {
+            currentProgram = { start, end, title: '' };
+            // 优化：如果当前频道不在我们关注的列表中，标记为跳过
+            shouldSkipCurrentProgram = !tvgs.has(currentTvgId);
+          }
+        }
+        // 解析 <title> 标签 - 只有在需要解析当前节目时才处理
+        else if (trimmedLine.startsWith('<title') && currentProgram && !shouldSkipCurrentProgram) {
+          // 处理带有语言属性的title标签，如 <title lang="zh">远方的家2025-60</title>
+          const titleMatch = trimmedLine.match(/<title(?:\s+[^>]*)?>(.*?)<\/title>/);
+          if (titleMatch && currentProgram) {
+            currentProgram.title = titleMatch[1];
+
+            // 保存节目信息（这里不需要再检查tvgs.has，因为shouldSkipCurrentProgram已经确保了相关性）
+            if (!result[currentTvgId]) {
+              result[currentTvgId] = [];
+            }
+            result[currentTvgId].push({ ...currentProgram });
+
+            currentProgram = null;
+          }
+        }
+        // 处理 </programme> 标签
+        else if (trimmedLine === '</programme>') {
+          currentProgram = null;
+          currentTvgId = '';
+          shouldSkipCurrentProgram = false; // 重置跳过标志
+        }
+      }
+    }
+
+    // ReadableStream 会自动关闭，不需要手动调用 close
+
+  } catch (error) {
+    console.error('Error parsing EPG:', error);
+  }
+
+  return result;
 }
 
 /**
@@ -71,14 +190,17 @@ export async function refreshLiveChannels(liveInfo: {
  * @param m3uContent M3U文件的内容字符串
  * @returns 频道信息数组
  */
-export function parseM3U(sourceKey: string, m3uContent: string): {
-  id: string;
-  tvgId: string;
-  name: string;
-  logo: string;
-  group: string;
-  url: string;
-}[] {
+function parseM3U(sourceKey: string, m3uContent: string): {
+  tvgUrl: string;
+  channels: {
+    id: string;
+    tvgId: string;
+    name: string;
+    logo: string;
+    group: string;
+    url: string;
+  }[];
+} {
   const channels: {
     id: string;
     tvgId: string;
@@ -90,9 +212,17 @@ export function parseM3U(sourceKey: string, m3uContent: string): {
 
   const lines = m3uContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
+  let tvgUrl = '';
   let channelIndex = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // 检查是否是 #EXTM3U 行，提取 tvg-url
+    if (line.startsWith('#EXTM3U')) {
+      const tvgUrlMatch = line.match(/x-tvg-url="([^"]*)"/);
+      tvgUrl = tvgUrlMatch ? tvgUrlMatch[1] : '';
+      continue;
+    }
 
     // 检查是否是 #EXTINF 行
     if (line.startsWith('#EXTINF:')) {
@@ -142,7 +272,7 @@ export function parseM3U(sourceKey: string, m3uContent: string): {
     }
   }
 
-  return channels;
+  return { tvgUrl, channels };
 }
 
 // utils/urlResolver.js

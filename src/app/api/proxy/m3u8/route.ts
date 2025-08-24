@@ -63,7 +63,18 @@ export async function GET(request: Request) {
 }
 
 function rewriteM3U8Content(content: string, baseUrl: string, req: Request, allowCORS: boolean) {
-  const protocol = req.headers.get('x-forwarded-proto') || 'http';
+  // 从 referer 头提取协议信息
+  const referer = req.headers.get('referer');
+  let protocol = 'http';
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      protocol = refererUrl.protocol.replace(':', '');
+    } catch (error) {
+      // ignore
+    }
+  }
+
   const host = req.headers.get('host');
   const proxyBase = `${protocol}://${host}/api/proxy`;
 

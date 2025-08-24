@@ -8,8 +8,10 @@ import { Radio, Tv } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 
 import { processImageUrl } from '@/lib/utils';
+import { parseCustomTimeFormat } from '@/lib/time';
 
 import PageLayout from '@/components/PageLayout';
+import EpgScrollableRow from '@/components/EpgScrollableRow';
 
 // 扩展 HTMLVideoElement 类型以支持 hls 属性
 declare global {
@@ -82,6 +84,133 @@ function LivePageClient() {
 
   // 过滤后的频道列表
   const [filteredChannels, setFilteredChannels] = useState<LiveChannel[]>([]);
+
+  // 节目单信息
+  const [epgData, setEpgData] = useState<{
+    tvgId: string;
+    source: string;
+    epgUrl: string;
+    programs: Array<{
+      start: string;
+      end: string;
+      title: string;
+    }>;
+  } | null>(null);
+
+  // EPG 数据加载状态
+  const [isEpgLoading, setIsEpgLoading] = useState(false);
+
+  // EPG数据清洗函数 - 去除重叠的节目，保留时间较短的，只显示今日节目
+  const cleanEpgData = (programs: Array<{ start: string; end: string; title: string }>) => {
+    if (!programs || programs.length === 0) return programs;
+
+    console.log(`开始清洗EPG数据，原始节目数量: ${programs.length}`);
+
+    // 获取今日日期（只考虑年月日，忽略时间）
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    // 首先过滤出今日的节目（包括跨天节目）
+    const todayPrograms = programs.filter(program => {
+      const programStart = parseCustomTimeFormat(program.start);
+      const programEnd = parseCustomTimeFormat(program.end);
+
+      // 获取节目的日期范围
+      const programStartDate = new Date(programStart.getFullYear(), programStart.getMonth(), programStart.getDate());
+      const programEndDate = new Date(programEnd.getFullYear(), programEnd.getMonth(), programEnd.getDate());
+
+      // 如果节目的开始时间或结束时间在今天，或者节目跨越今天，都算作今天的节目
+      return (
+        (programStartDate >= todayStart && programStartDate < todayEnd) || // 开始时间在今天
+        (programEndDate >= todayStart && programEndDate < todayEnd) || // 结束时间在今天
+        (programStartDate < todayStart && programEndDate >= todayEnd) // 节目跨越今天（跨天节目）
+      );
+    });
+
+    console.log(`过滤今日节目后数量: ${todayPrograms.length}`);
+
+    // 按开始时间排序
+    const sortedPrograms = [...todayPrograms].sort((a, b) => {
+      const startA = parseCustomTimeFormat(a.start).getTime();
+      const startB = parseCustomTimeFormat(b.start).getTime();
+      return startA - startB;
+    });
+
+    const cleanedPrograms: Array<{ start: string; end: string; title: string }> = [];
+    let removedCount = 0;
+    let dateFilteredCount = programs.length - todayPrograms.length;
+
+    for (let i = 0; i < sortedPrograms.length; i++) {
+      const currentProgram = sortedPrograms[i];
+      const currentStart = parseCustomTimeFormat(currentProgram.start);
+      const currentEnd = parseCustomTimeFormat(currentProgram.end);
+
+      // 检查是否与已添加的节目重叠
+      let hasOverlap = false;
+
+      for (const existingProgram of cleanedPrograms) {
+        const existingStart = parseCustomTimeFormat(existingProgram.start);
+        const existingEnd = parseCustomTimeFormat(existingProgram.end);
+
+        // 检查时间重叠（只考虑时间部分，忽略日期）
+        const currentTime = currentStart.getHours() * 60 + currentStart.getMinutes();
+        const currentEndTime = currentEnd.getHours() * 60 + currentEnd.getMinutes();
+        const existingTime = existingStart.getHours() * 60 + existingStart.getMinutes();
+        const existingEndTime = existingEnd.getHours() * 60 + existingEnd.getMinutes();
+
+        if (
+          (currentTime >= existingTime && currentTime < existingEndTime) || // 当前节目开始时间在已存在节目时间段内
+          (currentEndTime > existingTime && currentEndTime <= existingEndTime) || // 当前节目结束时间在已存在节目时间段内
+          (currentTime <= existingTime && currentEndTime >= existingEndTime) // 当前节目完全包含已存在节目
+        ) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      // 如果没有重叠，则添加该节目
+      if (!hasOverlap) {
+        cleanedPrograms.push(currentProgram);
+      } else {
+        // 如果有重叠，检查是否需要替换已存在的节目
+        for (let j = 0; j < cleanedPrograms.length; j++) {
+          const existingProgram = cleanedPrograms[j];
+          const existingStart = parseCustomTimeFormat(existingProgram.start);
+          const existingEnd = parseCustomTimeFormat(existingProgram.end);
+
+          // 检查是否与当前节目重叠（只考虑时间部分）
+          const currentTime = currentStart.getHours() * 60 + currentStart.getMinutes();
+          const currentEndTime = currentEnd.getHours() * 60 + currentEnd.getMinutes();
+          const existingTime = existingStart.getHours() * 60 + existingStart.getMinutes();
+          const existingEndTime = existingEnd.getHours() * 60 + existingEnd.getMinutes();
+
+          if (
+            (currentTime >= existingTime && currentTime < existingEndTime) ||
+            (currentEndTime > existingTime && currentEndTime <= existingEndTime) ||
+            (currentTime <= existingTime && currentEndTime >= existingEndTime)
+          ) {
+            // 计算节目时长
+            const currentDuration = currentEnd.getTime() - currentStart.getTime();
+            const existingDuration = existingEnd.getTime() - existingStart.getTime();
+
+            // 如果当前节目时间更短，则替换已存在的节目
+            if (currentDuration < existingDuration) {
+              console.log(`替换重叠节目: "${existingProgram.title}" (${existingDuration}ms) -> "${currentProgram.title}" (${currentDuration}ms)`);
+              cleanedPrograms[j] = currentProgram;
+            } else {
+              console.log(`跳过重叠节目: "${currentProgram.title}" (${currentDuration}ms)，保留 "${existingProgram.title}" (${existingDuration}ms)`);
+              removedCount++;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    console.log(`EPG数据清洗完成，清洗后节目数量: ${cleanedPrograms.length}，移除重叠节目: ${removedCount}个，过滤非今日节目: ${dateFilteredCount}个`);
+    return cleanedPrograms;
+  };
 
   // 播放器引用
   const artPlayerRef = useRef<any>(null);
@@ -237,6 +366,9 @@ function LivePageClient() {
       // 设置切换状态，锁住频道切换器
       setIsSwitchingSource(true);
 
+      // 清空节目单信息
+      setEpgData(null);
+
       setCurrentSource(source);
       await fetchChannels(source);
     } catch (err) {
@@ -251,12 +383,40 @@ function LivePageClient() {
   };
 
   // 切换频道
-  const handleChannelChange = (channel: LiveChannel) => {
+  const handleChannelChange = async (channel: LiveChannel) => {
     // 如果正在切换直播源，则禁用频道切换
     if (isSwitchingSource) return;
 
     setCurrentChannel(channel);
     setVideoUrl(channel.url);
+
+    // 获取节目单信息
+    if (channel.tvgId && currentSource) {
+      try {
+        setIsEpgLoading(true); // 开始加载 EPG 数据
+        const response = await fetch(`/api/live/epg?source=${currentSource.key}&tvgId=${channel.tvgId}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            console.log('节目单信息:', result.data);
+            // 清洗EPG数据，去除重叠的节目
+            const cleanedData = {
+              ...result.data,
+              programs: cleanEpgData(result.data.programs)
+            };
+            setEpgData(cleanedData);
+          }
+        }
+      } catch (error) {
+        console.error('获取节目单信息失败:', error);
+      } finally {
+        setIsEpgLoading(false); // 无论成功失败都结束加载状态
+      }
+    } else {
+      // 如果没有 tvgId 或 currentSource，清空 EPG 数据
+      setEpgData(null);
+      setIsEpgLoading(false);
+    }
   };
 
   // 清理播放器资源的统一函数
@@ -1032,28 +1192,40 @@ function LivePageClient() {
 
         {/* 当前频道信息 */}
         {currentChannel && (
-          <div className='p-4'>
-            <div className='flex items-center gap-4'>
-              <div className='w-20 h-20 bg-gray-300 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden'>
-                {currentChannel.logo ? (
-                  <img
-                    src={processImageUrl(currentChannel.logo)}
-                    alt={currentChannel.name}
-                    className='w-full h-full rounded object-contain'
-                  />
-                ) : (
-                  <Tv className='w-10 h-10 text-gray-500' />
-                )}
-              </div>
-              <div className='flex-1'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100'>
-                  {currentChannel.name}
-                </h3>
-                <p className='text-sm text-gray-500 dark:text-gray-400'>
-                  {currentSource?.name} • {currentChannel.group}
-                </p>
+          <div className='pt-4'>
+            <div className='flex flex-col lg:flex-row gap-4'>
+              {/* 频道图标+名称 - 在小屏幕上占100%，大屏幕占20% */}
+              <div className='w-full flex-shrink-0'>
+                <div className='flex items-center gap-4'>
+                  <div className='w-20 h-20 bg-gray-300 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden'>
+                    {currentChannel.logo ? (
+                      <img
+                        src={processImageUrl(currentChannel.logo)}
+                        alt={currentChannel.name}
+                        className='w-full h-full rounded object-contain'
+                      />
+                    ) : (
+                      <Tv className='w-10 h-10 text-gray-500' />
+                    )}
+                  </div>
+                  <div className='flex-1 min-w-0'>
+                    <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100 truncate'>
+                      {currentChannel.name}
+                    </h3>
+                    <p className='text-sm text-gray-500 dark:text-gray-400 truncate'>
+                      {currentSource?.name} {' > '} {currentChannel.group}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* EPG节目单 */}
+            <EpgScrollableRow
+              programs={epgData?.programs || []}
+              currentTime={new Date()}
+              isLoading={isEpgLoading}
+            />
           </div>
         )}
       </div>

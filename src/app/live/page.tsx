@@ -153,16 +153,11 @@ function LivePageClient() {
         const existingStart = parseCustomTimeFormat(existingProgram.start);
         const existingEnd = parseCustomTimeFormat(existingProgram.end);
 
-        // 检查时间重叠（只考虑时间部分，忽略日期）
-        const currentTime = currentStart.getHours() * 60 + currentStart.getMinutes();
-        const currentEndTime = currentEnd.getHours() * 60 + currentEnd.getMinutes();
-        const existingTime = existingStart.getHours() * 60 + existingStart.getMinutes();
-        const existingEndTime = existingEnd.getHours() * 60 + existingEnd.getMinutes();
-
+        // 检查时间重叠（考虑完整的日期和时间）
         if (
-          (currentTime >= existingTime && currentTime < existingEndTime) || // 当前节目开始时间在已存在节目时间段内
-          (currentEndTime > existingTime && currentEndTime <= existingEndTime) || // 当前节目结束时间在已存在节目时间段内
-          (currentTime <= existingTime && currentEndTime >= existingEndTime) // 当前节目完全包含已存在节目
+          (currentStart >= existingStart && currentStart < existingEnd) || // 当前节目开始时间在已存在节目时间段内
+          (currentEnd > existingStart && currentEnd <= existingEnd) || // 当前节目结束时间在已存在节目时间段内
+          (currentStart <= existingStart && currentEnd >= existingEnd) // 当前节目完全包含已存在节目
         ) {
           hasOverlap = true;
           break;
@@ -179,16 +174,11 @@ function LivePageClient() {
           const existingStart = parseCustomTimeFormat(existingProgram.start);
           const existingEnd = parseCustomTimeFormat(existingProgram.end);
 
-          // 检查是否与当前节目重叠（只考虑时间部分）
-          const currentTime = currentStart.getHours() * 60 + currentStart.getMinutes();
-          const currentEndTime = currentEnd.getHours() * 60 + currentEnd.getMinutes();
-          const existingTime = existingStart.getHours() * 60 + existingStart.getMinutes();
-          const existingEndTime = existingEnd.getHours() * 60 + existingEnd.getMinutes();
-
+          // 检查是否与当前节目重叠（考虑完整的日期和时间）
           if (
-            (currentTime >= existingTime && currentTime < existingEndTime) ||
-            (currentEndTime > existingTime && currentEndTime <= existingEndTime) ||
-            (currentTime <= existingTime && currentEndTime >= existingEndTime)
+            (currentStart >= existingStart && currentStart < existingEnd) ||
+            (currentEnd > existingStart && currentEnd <= existingEnd) ||
+            (currentStart <= existingStart && currentEnd >= existingEnd)
           ) {
             // 计算节目时长
             const currentDuration = currentEnd.getTime() - currentStart.getTime();

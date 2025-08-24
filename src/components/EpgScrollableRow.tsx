@@ -1,6 +1,9 @@
-import { Clock, Tv, Target } from 'lucide-react';
+/* eslint-disable react-hooks/exhaustive-deps */
+
+import { Clock, Target, Tv } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { parseCustomTimeFormat, formatTimeToHHMM } from '@/lib/time';
+
+import { formatTimeToHHMM, parseCustomTimeFormat } from '@/lib/time';
 
 interface EpgProgram {
   start: string;

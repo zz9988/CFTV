@@ -23,18 +23,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    for (const liveInfo of config.LiveConfig || []) {
-      if (liveInfo.disabled) {
-        continue;
-      }
-      try {
-        const nums = await refreshLiveChannels(liveInfo);
-        liveInfo.channelNumber = nums;
-      } catch (error) {
-        console.error('刷新直播源失败:', error);
-        liveInfo.channelNumber = 0;
-      }
-    }
+    // 并发刷新所有启用的直播源
+    const refreshPromises = (config.LiveConfig || [])
+      .filter(liveInfo => !liveInfo.disabled)
+      .map(async (liveInfo) => {
+        try {
+          const nums = await refreshLiveChannels(liveInfo);
+          liveInfo.channelNumber = nums;
+        } catch (error) {
+          liveInfo.channelNumber = 0;
+        }
+      });
+
+    // 等待所有刷新任务完成
+    await Promise.all(refreshPromises);
 
     // 保存配置
     await db.saveAdminConfig(config);

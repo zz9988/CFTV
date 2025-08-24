@@ -1,3 +1,5 @@
+/* eslint-disable no-constant-condition */
+
 import { getConfig } from "@/lib/config";
 import { db } from "@/lib/db";
 
@@ -99,14 +101,12 @@ async function parseEpg(epgUrl: string, ua: string, tvgIds: string[]): Promise<{
       },
     });
     if (!response.ok) {
-      console.warn(`Failed to fetch EPG from ${epgUrl}: ${response.status}`);
       return {};
     }
 
     // 使用 ReadableStream 逐行处理，避免将整个文件加载到内存
     const reader = response.body?.getReader();
     if (!reader) {
-      console.warn('Response body is not readable');
       return {};
     }
 
@@ -175,11 +175,8 @@ async function parseEpg(epgUrl: string, ua: string, tvgIds: string[]): Promise<{
         }
       }
     }
-
-    // ReadableStream 会自动关闭，不需要手动调用 close
-
   } catch (error) {
-    console.error('Error parsing EPG:', error);
+    // ignore
   }
 
   return result;

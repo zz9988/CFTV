@@ -7,11 +7,11 @@ import Hls from 'hls.js';
 import { Radio, Tv } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 
-import { processImageUrl } from '@/lib/utils';
 import { parseCustomTimeFormat } from '@/lib/time';
+import { processImageUrl } from '@/lib/utils';
 
-import PageLayout from '@/components/PageLayout';
 import EpgScrollableRow from '@/components/EpgScrollableRow';
+import PageLayout from '@/components/PageLayout';
 
 // 扩展 HTMLVideoElement 类型以支持 hls 属性
 declare global {
@@ -139,7 +139,7 @@ function LivePageClient() {
 
     const cleanedPrograms: Array<{ start: string; end: string; title: string }> = [];
     let removedCount = 0;
-    let dateFilteredCount = programs.length - todayPrograms.length;
+    const dateFilteredCount = programs.length - todayPrograms.length;
 
     for (let i = 0; i < sortedPrograms.length; i++) {
       const currentProgram = sortedPrograms[i];

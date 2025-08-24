@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.1.0",
+    date: "2025-08-24",
+    added: [
+    "解析 m3u 自带的 epg 和自定义 epg，增加今日节目单"
+    ],
+    changed: [
+    "直播源数据刷新改为并发刷新"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "4.0.0",
     date: "2025-08-24",
     added: [

@@ -11,6 +11,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.2.0",
+    date: "2025-08-26",
+    added: [
+    "支持 flv 直播和直播地址解析到 mp4 的处理",
+    "增加直播台标的 proxy 以防止 cors",
+    "支持播放页选集分组的滚动翻页"
+    ],
+    changed: [
+    "管理后台页面的按钮增加加载中的 UI"
+    ],
+    fixed: [
+    "/api/proxy/m3u8 仅对 m3u8 内容反序列化，降低内存和 CPU 消耗"
+    ]
+  },
+  {
     version: "4.1.1",
     date: "2025-08-25",
     added: [

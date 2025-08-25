@@ -3959,6 +3959,7 @@ const LiveSourceConfig = ({
   const { isLoading, withLoading } = useLoadingState();
   const [liveSources, setLiveSources] = useState<LiveDataSource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingLiveSource, setEditingLiveSource] = useState<LiveDataSource | null>(null);
   const [orderChanged, setOrderChanged] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newLiveSource, setNewLiveSource] = useState<LiveDataSource>({
@@ -4087,6 +4088,27 @@ const LiveSourceConfig = ({
     });
   };
 
+  const handleEditLiveSource = () => {
+    if (!editingLiveSource || !editingLiveSource.name || !editingLiveSource.url) return;
+    withLoading('editLiveSource', async () => {
+      await callLiveSourceApi({
+        action: 'edit',
+        key: editingLiveSource.key,
+        name: editingLiveSource.name,
+        url: editingLiveSource.url,
+        ua: editingLiveSource.ua,
+        epg: editingLiveSource.epg,
+      });
+      setEditingLiveSource(null);
+    }).catch(() => {
+      console.error('操作失败', 'edit', editingLiveSource);
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLiveSource(null);
+  };
+
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -4180,13 +4202,22 @@ const LiveSourceConfig = ({
             {!liveSource.disabled ? '禁用' : '启用'}
           </button>
           {liveSource.from !== 'config' && (
-            <button
-              onClick={() => handleDelete(liveSource.key)}
-              disabled={isLoading(`deleteLiveSource_${liveSource.key}`)}
-              className={`${buttonStyles.roundedSecondary} ${isLoading(`deleteLiveSource_${liveSource.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              删除
-            </button>
+            <>
+              <button
+                onClick={() => setEditingLiveSource(liveSource)}
+                disabled={isLoading(`editLiveSource_${liveSource.key}`)}
+                className={`${buttonStyles.roundedPrimary} ${isLoading(`editLiveSource_${liveSource.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                编辑
+              </button>
+              <button
+                onClick={() => handleDelete(liveSource.key)}
+                disabled={isLoading(`deleteLiveSource_${liveSource.key}`)}
+                className={`${buttonStyles.roundedSecondary} ${isLoading(`deleteLiveSource_${liveSource.key}`) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                删除
+              </button>
+            </>
           )}
         </td>
       </tr>
@@ -4285,6 +4316,103 @@ const LiveSourceConfig = ({
               className={`w-full sm:w-auto px-4 py-2 ${!newLiveSource.name || !newLiveSource.key || !newLiveSource.url || isLoading('addLiveSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
               {isLoading('addLiveSource') ? '添加中...' : '添加'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑直播源表单 */}
+      {editingLiveSource && (
+        <div className='p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4'>
+          <div className='flex items-center justify-between'>
+            <h5 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+              编辑直播源: {editingLiveSource.name}
+            </h5>
+            <button
+              onClick={handleCancelEdit}
+              className='text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+            >
+              ✕
+            </button>
+          </div>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div>
+              <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                名称
+              </label>
+              <input
+                type='text'
+                value={editingLiveSource.name}
+                onChange={(e) =>
+                  setEditingLiveSource((prev) => prev ? ({ ...prev, name: e.target.value }) : null)
+                }
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+              />
+            </div>
+            <div>
+              <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                Key (不可编辑)
+              </label>
+              <input
+                type='text'
+                value={editingLiveSource.key}
+                disabled
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              />
+            </div>
+            <div>
+              <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                M3U 地址
+              </label>
+              <input
+                type='text'
+                value={editingLiveSource.url}
+                onChange={(e) =>
+                  setEditingLiveSource((prev) => prev ? ({ ...prev, url: e.target.value }) : null)
+                }
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+              />
+            </div>
+            <div>
+              <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                节目单地址（选填）
+              </label>
+              <input
+                type='text'
+                value={editingLiveSource.epg}
+                onChange={(e) =>
+                  setEditingLiveSource((prev) => prev ? ({ ...prev, epg: e.target.value }) : null)
+                }
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+              />
+            </div>
+            <div>
+              <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                自定义 UA（选填）
+              </label>
+              <input
+                type='text'
+                value={editingLiveSource.ua}
+                onChange={(e) =>
+                  setEditingLiveSource((prev) => prev ? ({ ...prev, ua: e.target.value }) : null)
+                }
+                className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+              />
+            </div>
+          </div>
+          <div className='flex justify-end space-x-2'>
+            <button
+              onClick={handleCancelEdit}
+              className={buttonStyles.secondary}
+            >
+              取消
+            </button>
+            <button
+              onClick={handleEditLiveSource}
+              disabled={!editingLiveSource.name || !editingLiveSource.url || isLoading('editLiveSource')}
+              className={`${!editingLiveSource.name || !editingLiveSource.url || isLoading('editLiveSource') ? buttonStyles.disabled : buttonStyles.success}`}
+            >
+              {isLoading('editLiveSource') ? '保存中...' : '保存'}
             </button>
           </div>
         </div>

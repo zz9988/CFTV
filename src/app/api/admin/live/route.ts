@@ -102,6 +102,34 @@ export async function POST(request: NextRequest) {
         disableSource.disabled = true;
         break;
 
+      case 'edit':
+        // 编辑直播源
+        const editSource = config.LiveConfig.find((l) => l.key === key);
+        if (!editSource) {
+          return NextResponse.json({ error: '直播源不存在' }, { status: 404 });
+        }
+
+        // 配置文件中的直播源不允许编辑
+        if (editSource.from === 'config') {
+          return NextResponse.json({ error: '不能编辑配置文件中的直播源' }, { status: 400 });
+        }
+
+        // 更新字段（除了 key 和 from）
+        editSource.name = name as string;
+        editSource.url = url as string;
+        editSource.ua = ua || '';
+        editSource.epg = epg || '';
+
+        // 刷新频道数
+        try {
+          const nums = await refreshLiveChannels(editSource);
+          editSource.channelNumber = nums;
+        } catch (error) {
+          console.error('刷新直播源失败:', error);
+          editSource.channelNumber = 0;
+        }
+        break;
+
       case 'sort':
         // 排序直播源
         const { order } = body;

@@ -39,8 +39,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch m3u8' }, { status: 500 });
     }
 
+    const contentType = response.headers.get('Content-Type') || '';
     // rewrite m3u8
-    if (response.headers.get('Content-Type')?.includes('application/vnd.apple.mpegurl')) {
+    if (contentType.toLowerCase().includes('mpegurl')) {
       // 获取最终的响应URL（处理重定向后的URL）
       const finalUrl = response.url;
       const m3u8Content = await response.text();
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
       const modifiedContent = rewriteM3U8Content(m3u8Content, baseUrl, request, allowCORS);
 
       const headers = new Headers();
-      headers.set('Content-Type', 'application/vnd.apple.mpegurl');
+      headers.set('Content-Type', contentType);
       headers.set('Access-Control-Allow-Origin', '*');
       headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       headers.set('Access-Control-Allow-Headers', 'Content-Type, Range, Origin, Accept');

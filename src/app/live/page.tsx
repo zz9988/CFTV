@@ -413,13 +413,32 @@ function LivePageClient() {
   const cleanupPlayer = () => {
     if (artPlayerRef.current) {
       try {
+        // 先暂停播放
+        if (artPlayerRef.current.video) {
+          artPlayerRef.current.video.pause();
+          artPlayerRef.current.video.src = '';
+          artPlayerRef.current.video.load();
+        }
+
         // 销毁 HLS 实例
         if (artPlayerRef.current.video && artPlayerRef.current.video.hls) {
           artPlayerRef.current.video.hls.destroy();
+          artPlayerRef.current.video.hls = null;
         }
+
+        // 销毁 FLV 实例
         if (artPlayerRef.current.video && artPlayerRef.current.video.flv) {
           artPlayerRef.current.video.flv.destroy();
+          artPlayerRef.current.video.flv = null;
         }
+
+        // 移除所有事件监听器
+        artPlayerRef.current.off('ready');
+        artPlayerRef.current.off('loadstart');
+        artPlayerRef.current.off('loadeddata');
+        artPlayerRef.current.off('canplay');
+        artPlayerRef.current.off('waiting');
+        artPlayerRef.current.off('error');
 
         // 销毁 ArtPlayer 实例
         artPlayerRef.current.destroy();
@@ -552,9 +571,16 @@ function LivePageClient() {
       return;
     }
 
+    // 清理之前的 HLS 实例
     if (video.hls) {
-      video.hls.destroy();
+      try {
+        video.hls.destroy();
+        video.hls = null;
+      } catch (err) {
+        console.warn('清理 HLS 实例时出错:', err);
+      }
     }
+
     const hls = new Hls({
       debug: false,
       enableWorker: true,
@@ -669,7 +695,7 @@ function LivePageClient() {
           autoMini: false,
           screenshot: false,
           setting: false,
-          loop: true,
+          loop: false,
           flip: false,
           playbackRate: false,
           aspectRatio: false,
@@ -745,6 +771,20 @@ function LivePageClient() {
   // 清理播放器资源
   useEffect(() => {
     return () => {
+      cleanupPlayer();
+    };
+  }, []);
+
+  // 页面卸载时的额外清理
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      cleanupPlayer();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       cleanupPlayer();
     };
   }, []);

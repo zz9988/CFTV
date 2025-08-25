@@ -104,8 +104,6 @@ function LivePageClient() {
   const cleanEpgData = (programs: Array<{ start: string; end: string; title: string }>) => {
     if (!programs || programs.length === 0) return programs;
 
-    console.log(`开始清洗EPG数据，原始节目数量: ${programs.length}`);
-
     // 获取今日日期（只考虑年月日，忽略时间）
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -127,8 +125,6 @@ function LivePageClient() {
         (programStartDate < todayStart && programEndDate >= todayEnd) // 节目跨越今天（跨天节目）
       );
     });
-
-    console.log(`过滤今日节目后数量: ${todayPrograms.length}`);
 
     // 按开始时间排序
     const sortedPrograms = [...todayPrograms].sort((a, b) => {
@@ -186,10 +182,8 @@ function LivePageClient() {
 
             // 如果当前节目时间更短，则替换已存在的节目
             if (currentDuration < existingDuration) {
-              console.log(`替换重叠节目: "${existingProgram.title}" (${existingDuration}ms) -> "${currentProgram.title}" (${currentDuration}ms)`);
               cleanedPrograms[j] = currentProgram;
             } else {
-              console.log(`跳过重叠节目: "${currentProgram.title}" (${currentDuration}ms)，保留 "${existingProgram.title}" (${existingDuration}ms)`);
               removedCount++;
             }
             break;
@@ -198,7 +192,6 @@ function LivePageClient() {
       }
     }
 
-    console.log(`EPG数据清洗完成，清洗后节目数量: ${cleanedPrograms.length}，移除重叠节目: ${removedCount}个，过滤非今日节目: ${dateFilteredCount}个`);
     return cleanedPrograms;
   };
 
@@ -604,7 +597,7 @@ function LivePageClient() {
             hls.startLoad();
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
-            hls.recoverMediaError();
+            // hls.recoverMediaError();
             break;
           default:
             hls.destroy();

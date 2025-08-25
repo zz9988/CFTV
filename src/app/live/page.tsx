@@ -17,6 +17,7 @@ import PageLayout from '@/components/PageLayout';
 declare global {
   interface HTMLVideoElement {
     hls?: any;
+    flv?: any;
   }
 }
 
@@ -388,7 +389,6 @@ function LivePageClient() {
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
-            console.log('节目单信息:', result.data);
             // 清洗EPG数据，去除重叠的节目
             const cleanedData = {
               ...result.data,
@@ -416,6 +416,9 @@ function LivePageClient() {
         // 销毁 HLS 实例
         if (artPlayerRef.current.video && artPlayerRef.current.video.hls) {
           artPlayerRef.current.video.hls.destroy();
+        }
+        if (artPlayerRef.current.video && artPlayerRef.current.video.flv) {
+          artPlayerRef.current.video.flv.destroy();
         }
 
         // 销毁 ArtPlayer 实例
@@ -535,154 +538,200 @@ function LivePageClient() {
     }
   }
 
-  // 播放器初始化
-  useEffect(() => {
-    if (
-      !Artplayer ||
-      !Hls ||
-      !videoUrl ||
-      !artRef.current ||
-      !currentChannel
-    ) {
+  function m3u8Loader(video: HTMLVideoElement, url: string) {
+    if (!Hls) {
+      console.error('HLS.js 未加载');
       return;
     }
 
-    console.log('视频URL:', videoUrl);
-
-    // 销毁之前的播放器实例并创建新的
-    if (artPlayerRef.current) {
-      cleanupPlayer();
+    if (video.hls) {
+      video.hls.destroy();
     }
+    const hls = new Hls({
+      debug: false,
+      enableWorker: true,
+      lowLatencyMode: true,
+      maxBufferLength: 30,
+      backBufferLength: 30,
+      maxBufferSize: 60 * 1000 * 1000,
+      loader: CustomHlsJsLoader,
+    });
 
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    video.hls = hls;
+
+    hls.on(Hls.Events.ERROR, function (event: any, data: any) {
+      console.error('HLS Error:', event, data);
+
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            break;
+          default:
+            hls.destroy();
+            break;
+        }
+      }
+    });
+  }
+
+  async function flvLoader(video: HTMLVideoElement, url: string) {
     try {
-      // 创建新的播放器实例
-      Artplayer.USE_RAF = true;
+      const flvjs = await import('flv.js');
+      const flv = flvjs.default as any;
 
-      artPlayerRef.current = new Artplayer({
-        container: artRef.current,
-        url: videoUrl.toLowerCase().endsWith('.mp4') ? videoUrl : `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`,
-        poster: currentChannel.logo,
-        volume: 0.7,
-        isLive: true, // 设置为直播模式
-        muted: false,
-        autoplay: true,
-        pip: true,
-        autoSize: false,
-        autoMini: false,
-        screenshot: false,
-        setting: false,
-        loop: false,
-        flip: false,
-        playbackRate: false,
-        aspectRatio: false,
-        fullscreen: true,
-        fullscreenWeb: true,
-        subtitleOffset: false,
-        miniProgressBar: false,
-        mutex: true,
-        playsInline: true,
-        autoPlayback: false,
-        airplay: true,
-        theme: '#22c55e',
-        lang: 'zh-cn',
-        hotkey: false,
-        fastForward: false, // 直播不需要快进
-        autoOrientation: true,
-        lock: true,
-        moreVideoAttr: {
-          crossOrigin: 'anonymous',
-          preload: 'metadata',
-        },
-        type: videoUrl.toLowerCase().endsWith('.mp4') ? 'mp4' : 'm3u8',
-        // HLS 支持配置
-        customType: {
-          m3u8: function (video: HTMLVideoElement, url: string) {
-            if (!Hls) {
-              console.error('HLS.js 未加载');
-              return;
-            }
-
-            if (video.hls) {
-              video.hls.destroy();
-            }
-            const hls = new Hls({
-              debug: false,
-              enableWorker: true,
-              lowLatencyMode: true,
-              maxBufferLength: 30,
-              backBufferLength: 30,
-              maxBufferSize: 60 * 1000 * 1000,
-              loader: CustomHlsJsLoader,
-            });
-
-            hls.loadSource(url);
-            hls.attachMedia(video);
-            video.hls = hls;
-
-            hls.on(Hls.Events.ERROR, function (event: any, data: any) {
-              console.error('HLS Error:', event, data);
-
-              if (data.fatal) {
-                switch (data.type) {
-                  case Hls.ErrorTypes.NETWORK_ERROR:
-                    hls.startLoad();
-                    break;
-                  case Hls.ErrorTypes.MEDIA_ERROR:
-                    hls.recoverMediaError();
-                    break;
-                  default:
-                    hls.destroy();
-                    break;
-                }
-              }
-            });
-          },
-        },
-        icons: {
-          loading:
-            '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwIj48cGF0aCBkPSJNMjUuMjUxIDYuNDYxYy0xMC4zMTggMC0xOC42ODMgOC4zNjUtMTguNjgzIDE4LjY4M2g0LjA2OGMwLTguMDcgNi41NDUtMTQuNjE1IDE0LjYxNS0xNC42MTVWNi40NjF6IiBmaWxsPSIjMDA5Njg4Ij48YW5pbWF0ZVRyYW5zZm9ybSBhdHRyaWJ1dGVOYW1lPSJ0cmFuc2Zvcm0iIGF0dHJpYnV0ZVR5cGU9IlhNTCIgZHVyPSIxcyIgZnJvbT0iMCAyNSAyNSIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIHRvPSIzNjAgMjUgMjUiIHR5cGU9InJvdGF0ZSIvPjwvcGF0aD48L3N2Zz4=">',
-        },
-      });
-
-      // 监听播放器事件
-      artPlayerRef.current.on('ready', () => {
-        setError(null);
-        setIsVideoLoading(false);
-
-      });
-
-      artPlayerRef.current.on('loadstart', () => {
-        setIsVideoLoading(true);
-      });
-
-      artPlayerRef.current.on('loadeddata', () => {
-        setIsVideoLoading(false);
-      });
-
-      artPlayerRef.current.on('canplay', () => {
-        setIsVideoLoading(false);
-      });
-
-      artPlayerRef.current.on('waiting', () => {
-        setIsVideoLoading(true);
-      });
-
-      artPlayerRef.current.on('error', (err: any) => {
-        console.error('播放器错误:', err);
-      });
-
-      if (artPlayerRef.current?.video) {
-        const finalUrl = videoUrl.toLowerCase().endsWith('.mp4') ? videoUrl : `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}`;
-        ensureVideoSource(
-          artPlayerRef.current.video as HTMLVideoElement,
-          finalUrl
-        );
+      if (!flv.isSupported()) {
+        console.error('Flv.js 未支持');
+        return;
       }
 
-    } catch (err) {
-      console.error('创建播放器失败:', err);
-      // 不设置错误，只记录日志
+      if (video.flv) {
+        video.flv.destroy();
+      }
+
+      const flvPlayer = flv.createPlayer({
+        type: 'flv',
+        url: url,
+      });
+      flvPlayer.attachMediaElement(video);
+      flvPlayer.load();
+      video.flv = flvPlayer;
+    } catch (error) {
+      console.error('加载 Flv.js 失败:', error);
     }
+  }
+
+  // 播放器初始化
+  useEffect(() => {
+    const preload = async () => {
+      if (
+        !Artplayer ||
+        !Hls ||
+        !videoUrl ||
+        !artRef.current ||
+        !currentChannel
+      ) {
+        return;
+      }
+
+      console.log('视频URL:', videoUrl);
+
+      // 销毁之前的播放器实例并创建新的
+      if (artPlayerRef.current) {
+        cleanupPlayer();
+      }
+
+      // precheck type
+      let type = 'm3u8';
+      const precheckUrl = `/api/live/precheck?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`;
+      const precheckResponse = await fetch(precheckUrl);
+      if (!precheckResponse.ok) {
+        console.error('预检查失败:', precheckResponse.statusText);
+        return;
+      }
+      const precheckResult = await precheckResponse.json();
+      if (precheckResult.success) {
+        type = precheckResult.type;
+      }
+
+      const customType = type === 'flv' ? {
+        flv: flvLoader,
+      } : type === 'mp4' ? {} : {
+        m3u8: m3u8Loader,
+      };
+      try {
+        // 创建新的播放器实例
+        Artplayer.USE_RAF = true;
+
+        artPlayerRef.current = new Artplayer({
+          container: artRef.current,
+          url: `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`,
+          poster: currentChannel.logo,
+          volume: 0.7,
+          isLive: true, // 设置为直播模式
+          muted: false,
+          autoplay: true,
+          pip: true,
+          autoSize: false,
+          autoMini: false,
+          screenshot: false,
+          setting: false,
+          loop: true,
+          flip: false,
+          playbackRate: false,
+          aspectRatio: false,
+          fullscreen: true,
+          fullscreenWeb: true,
+          subtitleOffset: false,
+          miniProgressBar: false,
+          mutex: true,
+          playsInline: true,
+          autoPlayback: false,
+          airplay: true,
+          theme: '#22c55e',
+          lang: 'zh-cn',
+          hotkey: false,
+          fastForward: false, // 直播不需要快进
+          autoOrientation: true,
+          lock: true,
+          moreVideoAttr: {
+            crossOrigin: 'anonymous',
+            preload: 'metadata',
+          },
+          type: type,
+          customType: customType,
+          icons: {
+            loading:
+              '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwIj48cGF0aCBkPSJNMjUuMjUxIDYuNDYxYy0xMC4zMTggMC0xOC42ODMgOC4zNjUtMTguNjgzIDE4LjY4M2g0LjA2OGMwLTguMDcgNi41NDUtMTQuNjE1IDE0LjYxNS0xNC42MTVWNi40NjF6IiBmaWxsPSIjMDA5Njg4Ij48YW5pbWF0ZVRyYW5zZm9ybSBhdHRyaWJ1dGVOYW1lPSJ0cmFuc2Zvcm0iIGF0dHJpYnV0ZVR5cGU9IlhNTCIgZHVyPSIxcyIgZnJvbT0iMCAyNSAyNSIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIHRvPSIzNjAgMjUgMjUiIHR5cGU9InJvdGF0ZSIvPjwvcGF0aD48L3N2Zz4=">',
+          },
+        });
+
+        // 监听播放器事件
+        artPlayerRef.current.on('ready', () => {
+          setError(null);
+          setIsVideoLoading(false);
+
+        });
+
+        artPlayerRef.current.on('loadstart', () => {
+          setIsVideoLoading(true);
+        });
+
+        artPlayerRef.current.on('loadeddata', () => {
+          setIsVideoLoading(false);
+        });
+
+        artPlayerRef.current.on('canplay', () => {
+          setIsVideoLoading(false);
+        });
+
+        artPlayerRef.current.on('waiting', () => {
+          setIsVideoLoading(true);
+        });
+
+        artPlayerRef.current.on('error', (err: any) => {
+          console.error('播放器错误:', err);
+        });
+
+        if (artPlayerRef.current?.video) {
+          const finalUrl = `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}`;
+          ensureVideoSource(
+            artPlayerRef.current.video as HTMLVideoElement,
+            finalUrl
+          );
+        }
+
+      } catch (err) {
+        console.error('创建播放器失败:', err);
+        // 不设置错误，只记录日志
+      }
+    }
+    preload();
   }, [Artplayer, Hls, videoUrl, currentChannel, loading]);
 
   // 清理播放器资源

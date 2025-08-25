@@ -39,24 +39,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch m3u8' }, { status: 500 });
     }
 
-    // 获取最终的响应URL（处理重定向后的URL）
-    const finalUrl = response.url;
-    const m3u8Content = await response.text();
+    // rewrite m3u8
+    if (response.headers.get('Content-Type')?.includes('application/vnd.apple.mpegurl')) {
+      // 获取最终的响应URL（处理重定向后的URL）
+      const finalUrl = response.url;
+      const m3u8Content = await response.text();
 
-    // 使用最终的响应URL作为baseUrl，而不是原始的请求URL
-    const baseUrl = getBaseUrl(finalUrl);
+      // 使用最终的响应URL作为baseUrl，而不是原始的请求URL
+      const baseUrl = getBaseUrl(finalUrl);
 
-    // 重写 M3U8 内容
-    const modifiedContent = rewriteM3U8Content(m3u8Content, baseUrl, request, allowCORS);
+      // 重写 M3U8 内容
+      const modifiedContent = rewriteM3U8Content(m3u8Content, baseUrl, request, allowCORS);
 
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/vnd.apple.mpegurl');
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      headers.set('Access-Control-Allow-Headers', 'Content-Type, Range, Origin, Accept');
+      headers.set('Cache-Control', 'no-cache');
+      headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+      return new Response(modifiedContent, { headers });
+    }
+    // just proxy
     const headers = new Headers();
-    headers.set('Content-Type', 'application/vnd.apple.mpegurl');
+    headers.set('Content-Type', response.headers.get('Content-Type') || 'application/vnd.apple.mpegurl');
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type, Range, Origin, Accept');
     headers.set('Cache-Control', 'no-cache');
     headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    return new Response(modifiedContent, { headers });
+
+    // 直接返回视频流
+    return new Response(response.body, {
+      status: 200,
+      headers,
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch m3u8' }, { status: 500 });
   }
@@ -87,9 +104,7 @@ function rewriteM3U8Content(content: string, baseUrl: string, req: Request, allo
     // 处理 TS 片段 URL 和其他媒体文件
     if (line && !line.startsWith('#')) {
       const resolvedUrl = resolveUrl(baseUrl, line);
-      // 检查是否为 mp4 格式
-      const isMp4 = resolvedUrl.toLowerCase().includes('.mp4') || resolvedUrl.toLowerCase().includes('mp4');
-      const proxyUrl = (isMp4 || allowCORS) ? resolvedUrl : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}`;
+      const proxyUrl = allowCORS ? resolvedUrl : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}`;
       rewrittenLines.push(proxyUrl);
       continue;
     }
@@ -133,9 +148,7 @@ function rewriteMapUri(line: string, baseUrl: string, proxyBase: string) {
   if (uriMatch) {
     const originalUri = uriMatch[1];
     const resolvedUrl = resolveUrl(baseUrl, originalUri);
-    // 检查是否为 mp4 格式，如果是则走 proxyBase
-    const isMp4 = resolvedUrl.toLowerCase().includes('.mp4') || resolvedUrl.toLowerCase().includes('mp4');
-    const proxyUrl = isMp4 ? `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}` : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}`;
+    const proxyUrl = `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}`;
     return line.replace(uriMatch[0], `URI="${proxyUrl}"`);
   }
   return line;

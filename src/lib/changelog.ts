@@ -11,6 +11,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.2.1",
+    date: "2025-08-26",
+    added: [
+      // 无新增内容
+    ],
+    changed: [
+      // 无变更内容
+    ],
+    fixed: [
+    "修复直播源加载失败或离开页面后依然无限加载的问题"
+    ]
+  },
+  {
     version: "4.2.0",
     date: "2025-08-26",
     added: [

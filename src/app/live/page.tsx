@@ -209,6 +209,7 @@ function LivePageClient() {
   // 分组标签滚动相关
   const groupContainerRef = useRef<HTMLDivElement>(null);
   const groupButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const channelListRef = useRef<HTMLDivElement>(null);
 
   // -----------------------------------------------------------------------------
   // 工具函数（Utils）
@@ -459,6 +460,14 @@ function LivePageClient() {
     setSelectedGroup(group);
     const filtered = currentChannels.filter(channel => channel.group === group);
     setFilteredChannels(filtered);
+
+    // 滚动到频道列表顶端
+    if (channelListRef.current) {
+      channelListRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
   };
 
   // 初始化
@@ -1111,7 +1120,7 @@ function LivePageClient() {
                     </div>
 
                     {/* 频道列表 */}
-                    <div className='flex-1 overflow-y-auto space-y-2 pb-4'>
+                    <div ref={channelListRef} className='flex-1 overflow-y-auto space-y-2 pb-4'>
                       {filteredChannels.length > 0 ? (
                         filteredChannels.map(channel => {
                           const isActive = channel.id === currentChannel?.id;

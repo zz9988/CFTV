@@ -2503,17 +2503,18 @@ const VideoSourceConfig = ({
   return (
     <div className='space-y-6'>
       {/* 添加视频源表单 */}
-      <div className='flex items-center justify-between'>
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
         <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
           视频源列表
         </h4>
-        <div className='flex items-center space-x-2'>
-          {/* 批量操作按钮 */}
+        <div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2'>
+          {/* 批量操作按钮 - 移动端显示在下一行，PC端显示在左侧 */}
           {selectedSources.size > 0 && (
             <>
-              <div className='flex items-center space-x-3'>
+              <div className='flex flex-wrap items-center gap-3 order-2 sm:order-1'>
                 <span className='text-sm text-gray-600 dark:text-gray-400'>
-                  已选择 {selectedSources.size} 个视频源
+                  <span className='sm:hidden'>已选 {selectedSources.size}</span>
+                  <span className='hidden sm:inline'>已选择 {selectedSources.size} 个视频源</span>
                 </span>
                 <button
                   onClick={() => handleBatchOperation('batch_enable')}
@@ -2537,32 +2538,34 @@ const VideoSourceConfig = ({
                   {isLoading('batchSource_batch_delete') ? '删除中...' : '批量删除'}
                 </button>
               </div>
-              <div className='w-px h-6 bg-gray-300 dark:bg-gray-600'></div>
+              <div className='hidden sm:block w-px h-6 bg-gray-300 dark:bg-gray-600 order-2'></div>
             </>
           )}
-          <button
-            onClick={() => setShowValidationModal(true)}
-            disabled={isValidating}
-            className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center space-x-1 ${isValidating
-              ? buttonStyles.disabled
-              : buttonStyles.primary
-              }`}
-          >
-            {isValidating ? (
-              <>
-                <div className='w-3 h-3 border border-white border-t-transparent rounded-full animate-spin'></div>
-                <span>检测中...</span>
-              </>
-            ) : (
-              '有效性检测'
-            )}
-          </button>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className={showAddForm ? buttonStyles.secondary : buttonStyles.success}
-          >
-            {showAddForm ? '取消' : '添加视频源'}
-          </button>
+          <div className='flex items-center gap-2 order-1 sm:order-2'>
+            <button
+              onClick={() => setShowValidationModal(true)}
+              disabled={isValidating}
+              className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center space-x-1 ${isValidating
+                ? buttonStyles.disabled
+                : buttonStyles.primary
+                }`}
+            >
+              {isValidating ? (
+                <>
+                  <div className='w-3 h-3 border border-white border-t-transparent rounded-full animate-spin'></div>
+                  <span>检测中...</span>
+                </>
+              ) : (
+                '有效性检测'
+              )}
+            </button>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className={showAddForm ? buttonStyles.secondary : buttonStyles.success}
+            >
+              {showAddForm ? '取消' : '添加视频源'}
+            </button>
+          </div>
         </div>
       </div>
 

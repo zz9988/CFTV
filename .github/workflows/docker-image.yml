@@ -3,11 +3,6 @@ name: Build & Push Docker image
 on:
   workflow_dispatch:
     inputs:
-      platform:
-        description: '构建平台 (留空则构建所有平台)'
-        required: false
-        default: ''
-        type: string
       tag:
         description: 'Docker 标签'
         required: false
@@ -36,10 +31,6 @@ jobs:
             os: ubuntu-latest
           - platform: linux/arm64
             os: ubuntu-24.04-arm
-        # 如果手动触发时指定了平台，则只构建该平台
-        exclude:
-          - platform: ${{ github.event.inputs.platform != '' && matrix.platform != github.event.inputs.platform && 'linux/amd64' || '' }}
-          - platform: ${{ github.event.inputs.platform != '' && matrix.platform != github.event.inputs.platform && 'linux/arm64' || '' }}
     runs-on: ${{ matrix.os }}
 
     steps:

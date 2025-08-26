@@ -82,7 +82,6 @@ services:
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=kvrocks
       - KVROCKS_URL=redis://moontv-kvrocks:6666
-      - AUTH_TOKEN=授权码
     networks:
       - moontv-network
     depends_on:
@@ -117,7 +116,6 @@ services:
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=redis
       - REDIS_URL=redis://moontv-redis:6379
-      - AUTH_TOKEN=授权码
     networks:
       - moontv-network
     depends_on:
@@ -155,7 +153,6 @@ services:
       - NEXT_PUBLIC_STORAGE_TYPE=upstash
       - UPSTASH_URL=上面 https 开头的 HTTPS ENDPOINT
       - UPSTASH_TOKEN=上面的 TOKEN
-      - AUTH_TOKEN=授权码
 ```
 
 ## 配置文件

@@ -11,6 +11,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "4.3.0",
+    date: "2025-08-26",
+    added: [
+    "支持将 IPTV 频道添加到收藏中"
+    ],
+    changed: [
+    "禁用 flv 直播，仅支持 m3u8 直播",
+    "降低代理 ts 分片的内存占用"
+    ],
+    fixed: [
+      // 无修复内容
+    ]
+  },
+  {
     version: "4.2.1",
     date: "2025-08-26",
     added: [

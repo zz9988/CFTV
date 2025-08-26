@@ -1,5 +1,23 @@
 name: Build & Push Docker image
 
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: '构建平台 (留空则构建所有平台)'
+        required: false
+        default: ''
+        type: string
+      tag:
+        description: 'Docker 标签'
+        required: false
+        default: 'latest'
+        type: string
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,6 +36,10 @@ jobs:
             os: ubuntu-latest
           - platform: linux/arm64
             os: ubuntu-24.04-arm
+        # 如果手动触发时指定了平台，则只构建该平台
+        exclude:
+          - platform: ${{ github.event.inputs.platform != '' && matrix.platform != github.event.inputs.platform && 'linux/amd64' || '' }}
+          - platform: ${{ github.event.inputs.platform != '' && matrix.platform != github.event.inputs.platform && 'linux/arm64' || '' }}
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -47,9 +69,9 @@ jobs:
         uses: docker/metadata-action@v5
 
         with:
-          images: ghcr.io/${{ steps.lowercase.outputs.owner }}/moontv
+          images: ghcr.io/moontechlab/lunatv
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable={{is_default_branch}}
 
       - name: Build and push by digest
         id: build
@@ -59,8 +81,8 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ghcr.io/${{ steps.lowercase.outputs.owner }}/moontv:latest
-          outputs: type=image,name=ghcr.io/${{ steps.lowercase.outputs.owner }}/moontv,name-canonical=true,push=true
+          tags: ghcr.io/moontechlab/lunatv:${{ github.event.inputs.tag || 'latest' }}
+          outputs: type=image,name=ghcr.io/moontechlab/lunatv,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -105,8 +127,8 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create -t ghcr.io/${{ steps.lowercase.outputs.owner }}/moontv:latest \
-            $(printf 'ghcr.io/${{ steps.lowercase.outputs.owner }}/moontv@sha256:%s ' *)
+          docker buildx imagetools create -t ghcr.io/moontechlab/lunatv:${{ github.event.inputs.tag || 'latest' }} \
+            $(printf 'ghcr.io/moontechlab/lunatv@sha256:%s ' *)
 
   cleanup-refresh:
     runs-on: ubuntu-latest

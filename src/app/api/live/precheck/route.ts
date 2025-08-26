@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
     }
 
     const contentType = response.headers.get('Content-Type');
+    if (response.body) {
+      response.body.cancel();
+    }
     if (contentType?.includes('video/mp4')) {
       return NextResponse.json({ success: true, type: 'mp4' }, { status: 200 });
     }

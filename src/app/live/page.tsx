@@ -16,7 +16,6 @@ import PageLayout from '@/components/PageLayout';
 declare global {
   interface HTMLVideoElement {
     hls?: any;
-    flv?: any;
   }
 }
 
@@ -68,6 +67,7 @@ function LivePageClient() {
   // 播放器相关
   const [videoUrl, setVideoUrl] = useState('');
   const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [unsupportedType, setUnsupportedType] = useState<string | null>(null);
 
   // 切换直播源状态
   const [isSwitchingSource, setIsSwitchingSource] = useState(false);
@@ -350,6 +350,12 @@ function LivePageClient() {
       // 设置切换状态，锁住频道切换器
       setIsSwitchingSource(true);
 
+      // 首先销毁当前播放器
+      cleanupPlayer();
+
+      // 重置不支持的类型状态
+      setUnsupportedType(null);
+
       // 清空节目单信息
       setEpgData(null);
 
@@ -370,6 +376,12 @@ function LivePageClient() {
   const handleChannelChange = async (channel: LiveChannel) => {
     // 如果正在切换直播源，则禁用频道切换
     if (isSwitchingSource) return;
+
+    // 首先销毁当前播放器
+    cleanupPlayer();
+
+    // 重置不支持的类型状态
+    setUnsupportedType(null);
 
     setCurrentChannel(channel);
     setVideoUrl(channel.url);
@@ -404,6 +416,9 @@ function LivePageClient() {
 
   // 清理播放器资源的统一函数
   const cleanupPlayer = () => {
+    // 重置不支持的类型状态
+    setUnsupportedType(null);
+
     if (artPlayerRef.current) {
       try {
         // 先暂停播放
@@ -419,10 +434,22 @@ function LivePageClient() {
           artPlayerRef.current.video.hls = null;
         }
 
-        // 销毁 FLV 实例
+        // 销毁 FLV 实例 - 增强清理逻辑
         if (artPlayerRef.current.video && artPlayerRef.current.video.flv) {
-          artPlayerRef.current.video.flv.destroy();
-          artPlayerRef.current.video.flv = null;
+          try {
+            // 先停止加载
+            if (artPlayerRef.current.video.flv.unload) {
+              artPlayerRef.current.video.flv.unload();
+            }
+            // 销毁播放器
+            artPlayerRef.current.video.flv.destroy();
+            // 确保引用被清空
+            artPlayerRef.current.video.flv = null;
+          } catch (flvError) {
+            console.warn('FLV实例销毁时出错:', flvError);
+            // 强制清空引用
+            artPlayerRef.current.video.flv = null;
+          }
         }
 
         // 移除所有事件监听器
@@ -607,32 +634,6 @@ function LivePageClient() {
     });
   }
 
-  async function flvLoader(video: HTMLVideoElement, url: string) {
-    try {
-      const flvjs = await import('flv.js');
-      const flv = flvjs.default as any;
-
-      if (!flv.isSupported()) {
-        console.error('Flv.js 未支持');
-        return;
-      }
-
-      if (video.flv) {
-        video.flv.destroy();
-      }
-
-      const flvPlayer = flv.createPlayer({
-        type: 'flv',
-        url: url,
-      });
-      flvPlayer.attachMediaElement(video);
-      flvPlayer.load();
-      video.flv = flvPlayer;
-    } catch (error) {
-      console.error('加载 Flv.js 失败:', error);
-    }
-  }
-
   // 播放器初始化
   useEffect(() => {
     const preload = async () => {
@@ -666,18 +667,25 @@ function LivePageClient() {
         type = precheckResult.type;
       }
 
-      const customType = type === 'flv' ? {
-        flv: flvLoader,
-      } : type === 'mp4' ? {} : {
-        m3u8: m3u8Loader,
-      };
+      // 如果不是 m3u8 类型，设置不支持的类型并返回
+      if (type !== 'm3u8') {
+        setUnsupportedType(type);
+        setIsVideoLoading(false);
+        return;
+      }
+
+      // 重置不支持的类型
+      setUnsupportedType(null);
+
+      const customType = { m3u8: m3u8Loader };
+      const targetUrl = `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`;
       try {
         // 创建新的播放器实例
         Artplayer.USE_RAF = true;
 
         artPlayerRef.current = new Artplayer({
           container: artRef.current,
-          url: `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`,
+          url: targetUrl,
           poster: currentChannel.logo,
           volume: 0.7,
           isLive: true, // 设置为直播模式
@@ -746,10 +754,9 @@ function LivePageClient() {
         });
 
         if (artPlayerRef.current?.video) {
-          const finalUrl = `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}`;
           ensureVideoSource(
             artPlayerRef.current.video as HTMLVideoElement,
-            finalUrl
+            targetUrl
           );
         }
 
@@ -1028,6 +1035,36 @@ function LivePageClient() {
                   ref={artRef}
                   className='bg-black w-full h-full rounded-xl overflow-hidden shadow-lg border border-white/0 dark:border-white/30'
                 ></div>
+
+                {/* 不支持的直播类型提示 */}
+                {unsupportedType && (
+                  <div className='absolute inset-0 bg-black/90 backdrop-blur-sm rounded-xl flex items-center justify-center z-[600] transition-all duration-300'>
+                    <div className='text-center max-w-md mx-auto px-6'>
+                      <div className='relative mb-8'>
+                        <div className='relative mx-auto w-24 h-24 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-2xl flex items-center justify-center transform hover:scale-105 transition-transform duration-300'>
+                          <div className='text-white text-4xl'>⚠️</div>
+                          <div className='absolute -inset-2 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl opacity-20 animate-pulse'></div>
+                        </div>
+                      </div>
+                      <div className='space-y-4'>
+                        <h3 className='text-xl font-semibold text-white'>
+                          暂不支持的直播类型
+                        </h3>
+                        <div className='bg-orange-500/20 border border-orange-500/30 rounded-lg p-4'>
+                          <p className='text-orange-300 font-medium'>
+                            当前直播源类型：<span className='text-white font-bold'>{unsupportedType.toUpperCase()}</span>
+                          </p>
+                          <p className='text-orange-200 text-sm mt-2'>
+                            目前仅支持 M3U8 格式的直播流
+                          </p>
+                        </div>
+                        <p className='text-sm text-gray-300'>
+                          请尝试其他频道
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 视频加载蒙层 */}
                 {isVideoLoading && (

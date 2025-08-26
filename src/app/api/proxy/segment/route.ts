@@ -21,9 +21,12 @@ export async function GET(request: Request) {
   }
   const ua = liveSource.ua || 'AptvPlayer/1.4.10';
 
+  let response: Response | null = null;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
   try {
     const decodedUrl = decodeURIComponent(url);
-    const response = await fetch(decodedUrl, {
+    response = await fetch(decodedUrl, {
       headers: {
         'User-Agent': ua,
       },
@@ -43,8 +46,97 @@ export async function GET(request: Request) {
     if (contentLength) {
       headers.set('Content-Length', contentLength);
     }
-    return new Response(response.body, { headers });
+
+    // 使用流式传输，避免占用内存
+    const stream = new ReadableStream({
+      start(controller) {
+        if (!response?.body) {
+          controller.close();
+          return;
+        }
+
+        reader = response.body.getReader();
+        const isCancelled = false;
+
+        function pump() {
+          if (isCancelled || !reader) {
+            return;
+          }
+
+          reader.read().then(({ done, value }) => {
+            if (isCancelled) {
+              return;
+            }
+
+            if (done) {
+              controller.close();
+              cleanup();
+              return;
+            }
+
+            controller.enqueue(value);
+            pump();
+          }).catch((error) => {
+            if (!isCancelled) {
+              controller.error(error);
+              cleanup();
+            }
+          });
+        }
+
+        function cleanup() {
+          if (reader) {
+            try {
+              reader.releaseLock();
+            } catch (e) {
+              // reader 可能已经被释放，忽略错误
+            }
+            reader = null;
+          }
+        }
+
+        pump();
+      },
+      cancel() {
+        // 当流被取消时，确保释放所有资源
+        if (reader) {
+          try {
+            reader.releaseLock();
+          } catch (e) {
+            // reader 可能已经被释放，忽略错误
+          }
+          reader = null;
+        }
+
+        if (response?.body) {
+          try {
+            response.body.cancel();
+          } catch (e) {
+            // 忽略取消时的错误
+          }
+        }
+      }
+    });
+
+    return new Response(stream, { headers });
   } catch (error) {
+    // 确保在错误情况下也释放资源
+    if (reader) {
+      try {
+        (reader as ReadableStreamDefaultReader<Uint8Array>).releaseLock();
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+
+    if (response?.body) {
+      try {
+        response.body.cancel();
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+
     return NextResponse.json({ error: 'Failed to fetch segment' }, { status: 500 });
   }
 }

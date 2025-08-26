@@ -1,5 +1,8 @@
-import { getConfig } from '@/lib/config';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from 'next/server';
+
+import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 

@@ -62,6 +62,7 @@ function HomeClient() {
     source_name: string;
     currentEpisode?: number;
     search_title?: string;
+    origin?: 'vod' | 'live';
   };
 
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
@@ -133,6 +134,7 @@ function HomeClient() {
           source_name: fav.source_name,
           currentEpisode,
           search_title: fav?.search_title,
+          origin: fav?.origin,
         } as FavoriteItem;
       });
     setFavoriteItems(sorted);

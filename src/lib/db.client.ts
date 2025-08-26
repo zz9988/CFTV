@@ -51,6 +51,7 @@ export interface Favorite {
   total_episodes: number;
   save_time: number;
   search_title?: string;
+  origin?: 'vod' | 'live';
 }
 
 // ---- 缓存数据结构 ----
@@ -1357,7 +1358,7 @@ export function subscribeToDataUpdates<T>(
   callback: (data: T) => void
 ): () => void {
   if (typeof window === 'undefined') {
-    return () => {};
+    return () => { };
   }
 
   const handleUpdate = (event: CustomEvent) => {

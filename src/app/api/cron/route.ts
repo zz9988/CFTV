@@ -519,7 +519,10 @@ async function refreshRecordAndFavorites() {
 
       // 收藏
       try {
-        const favorites = await db.getAllFavorites(user);
+        let favorites = await db.getAllFavorites(user);
+        favorites = Object.fromEntries(
+          Object.entries(favorites).filter(([_, fav]) => fav.origin !== 'live')
+        );
         const totalFavorites = Object.keys(favorites).length;
         let processedFavorites = 0;
 

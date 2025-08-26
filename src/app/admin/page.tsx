@@ -3151,10 +3151,8 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
   const [configContent, setConfigContent] = useState('');
-  const [saving, setSaving] = useState(false);
   const [subscriptionUrl, setSubscriptionUrl] = useState('');
   const [autoUpdate, setAutoUpdate] = useState(false);
-  const [fetching, setFetching] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<string>('');
 
 
@@ -3396,8 +3394,6 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
     DisableYellowFilter: false,
     FluidSearch: true,
   });
-  // 保存状态
-  const [saving, setSaving] = useState(false);
 
   // 豆瓣数据源相关状态
   const [isDoubanDropdownOpen, setIsDoubanDropdownOpen] = useState(false);

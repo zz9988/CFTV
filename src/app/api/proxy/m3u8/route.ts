@@ -23,10 +23,13 @@ export async function GET(request: Request) {
   }
   const ua = liveSource.ua || 'AptvPlayer/1.4.10';
 
+  let response: Response | null = null;
+  let responseUsed = false;
+
   try {
     const decodedUrl = decodeURIComponent(url);
 
-    const response = await fetch(decodedUrl, {
+    response = await fetch(decodedUrl, {
       cache: 'no-cache',
       redirect: 'follow',
       credentials: 'same-origin',
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
       // 获取最终的响应URL（处理重定向后的URL）
       const finalUrl = response.url;
       const m3u8Content = await response.text();
+      responseUsed = true; // 标记 response 已被使用
 
       // 使用最终的响应URL作为baseUrl，而不是原始的请求URL
       const baseUrl = getBaseUrl(finalUrl);
@@ -77,6 +81,16 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch m3u8' }, { status: 500 });
+  } finally {
+    // 确保 response 被正确关闭以释放资源
+    if (response && !responseUsed) {
+      try {
+        response.body?.cancel();
+      } catch (error) {
+        // 忽略关闭时的错误
+        console.warn('Failed to close response body:', error);
+      }
+    }
   }
 }
 
